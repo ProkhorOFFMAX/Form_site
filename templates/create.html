@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Создать шаблон</title>
+</head>
+<body>
+    <h1>Создать шаблон анкеты</h1>
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST" id="template-form">
+        <p>
+            <label>Название анкеты:<br>
+                <input type="text" name="name" required>
+            </label>
+        </p>
+
+        <h3>Поля анкеты</h3>
+        <div id="fields-container"></div>
+
+        <p>
+            <button type="button" onclick="addField()">+ Добавить поле</button>
+        </p>
+
+        <!-- Скрытое поле: сюда JavaScript положит JSON -->
+        <input type="hidden" name="fields_json" id="fields_json">
+
+        <p>
+            <button type="submit">Сохранить</button>
+            <a href="{{ url_for('index') }}">Отмена</a>
+        </p>
+    </form>
+
+    <script>
+        const fields = [];
+
+        function addField() {
+            const label = prompt("Название поля (например, 'Имя'):");
+            if (!label) return;
+
+            const type = prompt("Тип поля: text или number", "text");
+            if (type !== "text" && type !== "number") {
+                alert("Тип должен быть text или number");
+                return;
+            }
+
+            const field = {
+                id: "f" + (fields.length + 1),
+                label: label,
+                type: type
+            };
+            fields.push(field);
+
+            renderFields();
+            document.getElementById("fields_json").value = JSON.stringify(fields);
+        }
+
+        function renderFields() {
+            const container = document.getElementById("fields-container");
+            container.innerHTML = "";
+
+            fields.forEach((f, i) => {
+                const div = document.createElement("div");
+                div.textContent = `${i + 1}. ${f.label} (${f.type})`;
+                container.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
