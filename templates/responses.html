@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Ответы: {{ template.name }}</title>
+</head>
+<body>
+    <h1>Ответы: {{ template.name }}</h1>
+
+    {% if responses %}
+        <table border="1" cellpadding="5">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    {% for field in fields %}
+                        <th>{{ field.label }}</th>
+                    {% endfor %}
+                    <th>Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in responses %}
+                    <tr>
+                        <td>{{ row.id }}</td>
+                        {% for field in fields %}
+                            <td>{{ row.data.get(field.id, "—") }}</td>
+                        {% endfor %}
+                        <td>{{ row.submitted_at }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Пока нет заполненных анкет.</p>
+    {% endif %}
+
+    <p>
+        <a href="{{ url_for('fill', template_id=template.id) }}">Заполнить ещё одну</a> |
+        <a href="{{ url_for('index') }}">На главную</a>
+    </p>
+</body>
+</html>
