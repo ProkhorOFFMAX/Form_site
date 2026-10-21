@@ -1,6 +1,7 @@
 import psycopg2
 import pytest
 import uuid
+import os
 
 from dotenv import load_dotenv
 
@@ -10,7 +11,12 @@ load_dotenv()
 def test_db_url():
     """Создание временной БД на время тестовой сессии"""
     db_name = f"test_{uuid.uuid4().hex[:8]}"
-    admin_url = f"postgresql://form_user:form_secret@localhost:5432/postgres"
+    admin_url = (
+        f"postgresql://{os.environ.get('DB_USER', 'test_user')}:"
+        f"{os.environ.get('DB_PASSWORD', 'test_password')}@"
+        f"{os.environ.get('DB_HOST', 'postgres')}:"
+        f"{os.environ.get('DB_PORT', '5432')}/postgres"
+    )
 
     # Создаём БД
     conn = psycopg2.connect(admin_url)
