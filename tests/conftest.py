@@ -25,7 +25,13 @@ def test_db_url():
         cur.execute(f"CREATE DATABASE {db_name}")
     conn.close()
 
-    url = f"postgresql://form_user:form_secret@localhost:5432/{db_name}"
+    url = (
+        f"postgresql://{os.environ.get('DB_USER', 'test_user')}:"
+        f"{os.environ.get('DB_PASSWORD', 'test_password')}@"
+        f"{os.environ.get('DB_HOST', 'postgres')}:"
+        f"{os.environ.get('DB_PORT', '5432')}/"
+        f"{db_name}"
+    )
 
     # Применяем схему
     conn = psycopg2.connect(url)
