@@ -21,6 +21,8 @@ cache:
 test:
   stage: test
   image: python:3.11
+  tags:
+    - docker
   services:
     - name: postgres:16-alpine
       alias: postgres
