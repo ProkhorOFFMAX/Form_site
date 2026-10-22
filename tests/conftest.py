@@ -2,10 +2,24 @@ import psycopg2
 import pytest
 import uuid
 import os
+import pathlib
+
+MIGRATIONS_DIR = pathlib.Path(__file__).parent.parent / "migrations"
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+def apply_migrations(db_url):
+    """Применяет все .sql-файлы из migrations/ по порядку."""
+    conn = psycopg2.connect(db_url)
+    conn.autocommit = True
+    try:
+        with conn.cursor() as cur:
+            for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
+                cur.execute(sql_file.read_text(encoding="utf-8"))
+    finally:
+        conn.close()
 
 @pytest.fixture(scope="session")
 def test_db_url():
@@ -33,27 +47,7 @@ def test_db_url():
         f"{db_name}"
     )
 
-    # Применяем схему
-    conn = psycopg2.connect(url)
-    with conn.cursor() as cur:
-        cur.execute("""
-            CREATE TABLE templates (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                fields JSONB NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        cur.execute("""
-            CREATE TABLE responses (
-                id SERIAL PRIMARY KEY,
-                template_id INTEGER NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
-                data JSONB NOT NULL,
-                submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-    conn.commit()
-    conn.close()
+    apply_migrations(url)
 
     yield url
     # Удаляем БД после тестов
