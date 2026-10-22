@@ -3,6 +3,8 @@ import pytest
 import uuid
 import os
 import pathlib
+from alembic.config import Config
+from alembic import command
 
 MIGRATIONS_DIR = pathlib.Path(__file__).parent.parent / "migrations"
 
@@ -47,7 +49,12 @@ def test_db_url():
         f"{db_name}"
     )
 
-    apply_migrations(url)
+
+
+
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.attributes['connection_url'] = url
+    command.upgrade(alembic_cfg, "head")
 
     yield url
     # Удаляем БД после тестов
