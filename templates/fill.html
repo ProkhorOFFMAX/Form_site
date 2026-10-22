@@ -17,8 +17,14 @@
                 <label>{{ field.label }}:<br>
                     {% if field.type == "number" %}
                         <input type="number" step="any" name="{{ field.id }}" required>
-                    {% else %}
+                    {% elif field.type == "text" %}
                         <input type="text" name="{{ field.id }}" required>
+                    {% elif field.type == "boolean" %}
+                        <select name="{{ field.id }}" required>
+                            <option value="" disabled selected>— выберите —</option>
+                            <option value="true">Да</option>
+                            <option value="false">Нет</option>
+                        </select>
                     {% endif %}
                 </label>
             </p>

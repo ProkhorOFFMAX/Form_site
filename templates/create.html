@@ -3,6 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <title>Создать шаблон</title>
+    <style>
+        .field-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .field-row input[type="text"] {
+            flex: 1;
+            padding: 4px;
+        }
+        .field-row select {
+            padding: 4px;
+        }
+        .field-row .remove-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .field-row .remove-btn:hover {
+            background: #c0392b;
+        }
+        .add-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .add-btn:hover {
+            background: #2980b9;
+        }
+        #fields-container:empty::after {
+            content: "Пока нет полей. Нажмите «+ Добавить поле».";
+            color: #888;
+            font-style: italic;
+        }
+    </style>
 </head>
 <body>
     <h1>Создать шаблон анкеты</h1>
@@ -14,7 +59,7 @@
     <form method="POST" id="template-form">
         <p>
             <label>Название анкеты:<br>
-                <input type="text" name="name" required>
+                <input type="text" name="name" required style="width: 300px; padding: 4px;">
             </label>
         </p>
 
@@ -22,7 +67,7 @@
         <div id="fields-container"></div>
 
         <p>
-            <button type="button" onclick="addField()">+ Добавить поле</button>
+            <button type="button" class="add-btn" onclick="addField()">+ Добавить поле</button>
         </p>
 
         <!-- Скрытое поле: сюда JavaScript положит JSON -->
@@ -35,38 +80,66 @@
     </form>
 
     <script>
-        const fields = [];
+        const container = document.getElementById('fields-container');
+        const hiddenInput = document.getElementById('fields_json');
 
         function addField() {
-            const label = prompt("Название поля (например, 'Имя'):");
-            if (!label) return;
+            const row = document.createElement('div');
+            row.className = 'field-row';
 
-            const type = prompt("Тип поля: text или number", "text");
-            if (type !== "text" && type !== "number") {
-                alert("Тип должен быть text или number");
-                return;
-            }
+            // Поле для названия
+            const labelInput = document.createElement('input');
+            labelInput.type = 'text';
+            labelInput.placeholder = 'Название поля (например, «Имя»)';
+            labelInput.addEventListener('input', updateHidden);
 
-            const field = {
-                id: "f" + (fields.length + 1),
-                label: label,
-                type: type
-            };
-            fields.push(field);
+            // Выпадающий список типа
+            const typeSelect = document.createElement('select');
+            typeSelect.innerHTML = `
+                <option value="text">Текст</option>
+                <option value="number">Число</option>
+                <option value="boolean">Да/Нет</option>
+            `;
+            typeSelect.addEventListener('change', updateHidden);
 
-            renderFields();
-            document.getElementById("fields_json").value = JSON.stringify(fields);
+            // Кнопка удаления
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-btn';
+            removeBtn.textContent = '✕';
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+                updateHidden();
+            });
+
+            row.appendChild(labelInput);
+            row.appendChild(typeSelect);
+            row.appendChild(removeBtn);
+            container.appendChild(row);
+
+            updateHidden();
+            labelInput.focus();
         }
 
-        function renderFields() {
-            const container = document.getElementById("fields-container");
-            container.innerHTML = "";
+        function updateHidden() {
+            const rows = container.querySelectorAll('.field-row');
+            const fields = [];
 
-            fields.forEach((f, i) => {
-                const div = document.createElement("div");
-                div.textContent = `${i + 1}. ${f.label} (${f.type})`;
-                container.appendChild(div);
+            rows.forEach((row, index) => {
+                const label = row.querySelector('input[type="text"]').value.trim();
+                const type = row.querySelector('select').value;
+
+                // Пропускаем пустые поля (не добавляем в JSON, но нумеруем по порядку)
+                if (label === '') return;
+
+                fields.push({
+                    id: 'f' + (fields.length + 1),
+                    label: label,
+                    type: type
+                });
             });
+
+            hiddenInput.value = JSON.stringify(fields);
         }
     </script>
 </body>

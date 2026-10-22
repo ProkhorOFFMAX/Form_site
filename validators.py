@@ -1,14 +1,17 @@
+import errors as err
+
+# Валидатор полей для заявки
 def validate_fields(fields):
     if not isinstance(fields, list) or len(fields) == 0:
-        return False, "Должен быть не пустой массив полей"
+        return False, err.ErrorMessages.EMPTY_FIELDS
 
     for f in fields:
         if not isinstance(f, dict):
-            return False, "Каждое поле должно быть объектом"
+            return False, err.ErrorMessages.WRONG_FIELD
         if 'label' not in f or not f['label'].strip():
-            return False, "У каждого поля должен быть label"
+            return False, err.ErrorMessages.MISSING_LABEL
         if 'type' not in f:
-            return False, "У каждого поля должен быть type"
-        if f['type'] not in ("text", "number"):
-            return False, "Тип поля должен быть text или number"
+            return False, err.ErrorMessages.MISSING_TYPE
+        if f['type'] not in ("text", "number", "boolean"):
+            return False, err.ErrorMessages.WRONG_TYPE
     return True, None

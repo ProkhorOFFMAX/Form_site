@@ -1,11 +1,13 @@
 from getopt import error
+import errors as err
 
 from validators import validate_fields
 
 def test_validate_fields():
     fields = [
         {"id": "f1", "label": "Имя", "type": "text"},
-        {"id": "f2", "label": "Возраст", "type": "number"}
+        {"id": "f2", "label": "Возраст", "type": "number"},
+        {"id": "f3", "label": "ОВЗ", "type": "boolean"},
     ]
     ok, error = validate_fields(fields)
     assert error is None
@@ -17,7 +19,7 @@ def test_empty_label():
     ]
     ok, error = validate_fields(fields)
     assert ok is False
-    assert error == "У каждого поля должен быть label"
+    assert error == err.ErrorMessages.MISSING_LABEL
 
 
 def test_empty_fields():
@@ -25,19 +27,19 @@ def test_empty_fields():
     ]
     ok, error = validate_fields(fields)
     assert ok is False
-    assert error == "Должен быть не пустой массив полей"
+    assert error == err.ErrorMessages.EMPTY_FIELDS
 
 def test_fields_is_string():
     fields = "hello world"
     ok, error = validate_fields(fields)
     assert ok is False
-    assert error == "Должен быть не пустой массив полей"
+    assert error == err.ErrorMessages.EMPTY_FIELDS
 
 def test_fields_no_label():
     fields = [{"id": "f1", "type": "text"}]
     ok, error = validate_fields(fields)
     assert ok is False
-    assert error == "У каждого поля должен быть label"
+    assert error == err.ErrorMessages.MISSING_LABEL
 
 def test_empty_type():
     fields = [
@@ -45,7 +47,7 @@ def test_empty_type():
     ]
     ok, error = validate_fields(fields)
     assert ok is False
-    assert error == "Тип поля должен быть text или number"
+    assert error == err.ErrorMessages.WRONG_TYPE
 
 def test_fields_no_type():
     fields = [
@@ -53,7 +55,7 @@ def test_fields_no_type():
     ]
     ok, error = validate_fields(fields)
     assert ok is False
-    assert error == "У каждого поля должен быть type"
+    assert error == err.ErrorMessages.MISSING_TYPE
 
 def test_fields_wrong_type():
     fields = [
@@ -61,4 +63,4 @@ def test_fields_wrong_type():
     ]
     ok, error = validate_fields(fields)
     assert ok is False
-    assert error == "Тип поля должен быть text или number"
+    assert error == err.ErrorMessages.WRONG_TYPE

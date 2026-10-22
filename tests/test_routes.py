@@ -36,17 +36,21 @@ def test_fill_and_view(client):
         "name": "Анкета",
         "fields_json": json.dumps([
             {"id": "f1", "label": "Имя", "type": "text"},
-            {"id": "f2", "label": "Возраст", "type": "number"}
+            {"id": "f2", "label": "Возраст", "type": "number"},
+            {"id": "f3", "label": "ОВЗ", "type": "boolean"}
+
         ])
     })
 
     # Заполняем
     response = client.post("/fill/1", data={
         "f1": "Иван",
-        "f2": "30"
+        "f2": "30",
+        "f3": "true"
     }, follow_redirects=True)
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
     assert "Иван" in text
     assert "30" in text
+    assert "Да" in text

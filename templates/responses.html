@@ -23,7 +23,17 @@
                     <tr>
                         <td>{{ row.id }}</td>
                         {% for field in fields %}
-                            <td>{{ row.data.get(field.id, "—") }}</td>
+                            <td>
+                            {% if field.type == "boolean" %}
+                                {% if row.data.get(field.id) %}
+                                    Да
+                                {% else %}
+                                    Нет
+                                {% endif %}
+                            {% else %}
+                                {{ row.data.get(field.id, "—") }}
+                            {% endif %}
+                            </td>
                         {% endfor %}
                         <td>{{ row.submitted_at }}</td>
                     </tr>

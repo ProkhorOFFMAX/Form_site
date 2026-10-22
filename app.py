@@ -55,7 +55,13 @@ def fill(template_id):
         for field in fields:
             value = request.form.get(field["id"], "").strip()
 
-            if field["type"] == "number":
+            if field["type"] == "boolean":
+                raw = request.form.get(field["id"], "")
+                if raw == "":
+                    return render_template("fill.html", template=template, fields=fields,
+                                               error=f"Поле «{field['label']}» обязательно")
+                value = (raw == "true")
+            elif field["type"] == "number":
                 if value == "":
                     return render_template("fill.html", template=template,
                                            fields=fields, error=f"Поле «{field['label']}» должно быть числом")
