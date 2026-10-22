@@ -1,5 +1,6 @@
 import psycopg2
 
+# Тесты для проверки создания БД
 
 def test_institutions_table_schema(test_db_url):
     conn = psycopg2.connect(test_db_url)

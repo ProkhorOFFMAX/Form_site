@@ -25,6 +25,16 @@
                             <option value="true">Да</option>
                             <option value="false">Нет</option>
                         </select>
+                    {% elif field.type == "institution" %}
+                        <select class="inst-type" name="{{ field.id }}_type" required>
+                            <option value="" disabled selected>— выберите тип —</option>
+                            <option value="ГБОУ">ГБОУ</option>
+                            <option value="ГБДОУ">ГБДОУ</option>
+                            <option value="ОДОД">ОДОД</option>
+                        </select>
+                        <select class="inst-name" name="{{ field.id }}" required>
+                            <option value="">- сначала выберите тип ОУ -</option>
+                        </select>
                     {% endif %}
                 </label>
             </p>
@@ -37,3 +47,6 @@
     </form>
 </body>
 </html>
+
+
+<script src="{{ url_for('static', filename='js/fill.js') }}"></script>

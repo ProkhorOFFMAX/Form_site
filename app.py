@@ -1,10 +1,13 @@
 from dataclasses import fields
 from getopt import error
+from os.path import exists
 
 from dotenv import load_dotenv
+from sqlalchemy.engine import row
+
 load_dotenv()
 
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 from db import query_db
 from validators import validate_fields
 import json
@@ -69,7 +72,19 @@ def fill(template_id):
                     if value == "":
                         return render_template("fill.html", template=template, fields=fields,
                                                error=f"Поле «{field['label']}» обязательно")
-
+            elif field["type"] == "institution":
+                raw = request.form.get(field["id"], "")
+                if raw == "":
+                    return render_template("fill.html", template=template, fields=fields,
+                                           error=f"Поле «{field['label']}» обязательно")
+                # Проверяем, что ID существует
+                exists = query_db(
+                    "SELECT id FROM educational_institutions WHERE id = %s",
+                    (int(raw),)
+                )
+                if not exists:
+                    return render_template("fill.html", template=template, fields=fields, error=f"Выбранное ОУ не найдено")
+                value = int(raw)
             data[field["id"]] = value
 
             # Сохраняем
@@ -82,7 +97,6 @@ def fill(template_id):
         return redirect(url_for("responses", template_id=template_id))
 
     return render_template("fill.html", template=template, fields=fields)
-
 
 @app.route("/responses/<int:template_id>")
 def responses(template_id):
@@ -98,4 +112,37 @@ def responses(template_id):
         (template_id,)
     )
 
-    return render_template("responses.html", template=template, fields=fields, responses=rows)
+    all_inst_ids = set()
+    for row in rows:
+        for field in fields:
+            if field["type"] == "institution":
+                inst_id = row["data"].get(field["id"])
+                if inst_id:
+                    all_inst_ids.add(inst_id)
+
+    inst_names = {}
+    if all_inst_ids:
+        placeholders = ",".join(["%s"] * len(all_inst_ids))
+        inst_rows = query_db(
+            f"SELECT id, short_name FROM educational_institutions WHERE id IN ({placeholders})",
+            tuple(all_inst_ids)
+        )
+        inst_names = {r["id"]: r["short_name"] for r in inst_rows}
+
+    return render_template("responses.html", template=template, fields=fields, responses=rows, inst_names=inst_names)
+
+@app.route("/api/institutions/<string:inst_type>")
+def get_institutions(inst_type):
+    if inst_type not in ('ГБОУ', "ГБДОУ", "ОДОД"):
+        return jsonify({"error": "Неверный тип"}), 400
+
+    rows = query_db(
+        "SELECT id, full_name, short_name FROM educational_institutions "
+        "WHERE type = %s ORDER BY short_name",
+        (inst_type,)
+    )
+
+    return  jsonify([
+        {"id": r["id"],"full_name": r["full_name"],"short_name": r["short_name"]}
+        for r in rows
+    ])

@@ -30,6 +30,13 @@
                                 {% else %}
                                     Нет
                                 {% endif %}
+                            {% elif field.type == "institution" %}
+                                {% set inst_id = row.data.get(field.id) %}
+                                {% if inst_id %}
+                                    {{ inst_names.get(inst_id, "—") }}
+                                {% else %}
+                                    —
+                                {% endif %}
                             {% else %}
                                 {{ row.data.get(field.id, "—") }}
                             {% endif %}

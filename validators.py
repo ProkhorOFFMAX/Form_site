@@ -12,6 +12,6 @@ def validate_fields(fields):
             return False, err.ErrorMessages.MISSING_LABEL
         if 'type' not in f:
             return False, err.ErrorMessages.MISSING_TYPE
-        if f['type'] not in ("text", "number", "boolean"):
+        if f['type'] not in ("text", "number", "boolean", "institution"):
             return False, err.ErrorMessages.WRONG_TYPE
     return True, None
