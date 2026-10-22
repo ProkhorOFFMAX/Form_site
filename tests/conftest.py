@@ -88,6 +88,38 @@ def clean_tables(test_db_url):
     """Очищает таблицы перед каждым тестом, чтобы данные не переносились."""
     conn = psycopg2.connect(test_db_url)
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE templates, responses RESTART IDENTITY CASCADE;")
+        cur.execute("TRUNCATE templates, responses, educational_institutions RESTART IDENTITY CASCADE;")
     conn.commit()
     conn.close()
+
+
+@pytest.fixture
+def seeded_institutions(test_db_url):
+    """Вставляет по 2 ОУ каждого типа в тестовую БД."""
+    institutions = [
+        # ГБОУ
+        ("ГБОУ Школа №1", "Школа №1", "ГБОУ"),
+        ("ГБОУ Школа №2", "Школа №2", "ГБОУ"),
+        # ГБДОУ
+        ("ГБДОУ Детсад №10", "Детсад №10", "ГБДОУ"),
+        ("ГБДОУ Детсад №15", "Детсад №15", "ГБДОУ"),
+        # ОДОД
+        ("ОДОД Дворец творчества", "Дворец творчества", "ОДОД"),
+        ("ОДОД Спортшкола", "Спортшкола", "ОДОД"),
+    ]
+
+    conn = psycopg2.connect(test_db_url)
+    try:
+        with conn.cursor() as cur:
+            for full_name, short_name, inst_type in institutions:
+                cur.execute(
+                    "INSERT INTO educational_institutions (full_name, short_name, type) "
+                    "VALUES (%s, %s, %s)",
+                    (full_name, short_name, inst_type)
+                )
+        conn.commit()
+    finally:
+        conn.close()
+
+    yield
+    # Очистка не нужна: clean_tables с autouse=True сделает это перед следующим тестом
