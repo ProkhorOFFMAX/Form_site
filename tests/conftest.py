@@ -12,16 +12,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def apply_migrations(db_url):
-    """Применяет все .sql-файлы из migrations/ по порядку."""
-    conn = psycopg2.connect(db_url)
-    conn.autocommit = True
-    try:
-        with conn.cursor() as cur:
-            for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
-                cur.execute(sql_file.read_text(encoding="utf-8"))
-    finally:
-        conn.close()
+#def apply_migrations(db_url):
+#    """Применяет все .sql-файлы из migrations/ по порядку."""
+#    conn = psycopg2.connect(db_url)
+#    conn.autocommit = True
+#    try:
+#        with conn.cursor() as cur:
+#            for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
+#                cur.execute(sql_file.read_text(encoding="utf-8"))
+#    finally:
+#        conn.close()
 
 @pytest.fixture(scope="session")
 def test_db_url():
@@ -48,9 +48,6 @@ def test_db_url():
         f"{os.environ.get('DB_PORT', '5432')}/"
         f"{db_name}"
     )
-
-
-
 
     alembic_cfg = Config("alembic.ini")
     alembic_cfg.attributes['connection_url'] = url
