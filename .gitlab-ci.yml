@@ -26,11 +26,11 @@ test:
   services:
     - name: postgres:16-alpine
       alias: postgres
-  before_script:
+  script:
     - pip install --upgrade pip
     - pip install -r requirements.txt
     - pip install pytest
-  script:
+    - alembic upgrade head
     - pytest -v --junitxml=report.xml
   artifacts:
     when: always
