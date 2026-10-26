@@ -196,7 +196,7 @@ def institutions_list():
 def delete_institution(inst_id):
     exists = query_db("SELECT id FROM educational_institutions WHERE id = %s", (inst_id,))
     if not exists:
-        return jsonify({"error": "ОУ не найдено"})
+        return jsonify({"error": "ОУ не найдено"}), 404
 
     query_db("DELETE FROM educational_institutions WHERE id = %s", (inst_id,), fetch=False)
     return jsonify({"success": True})
@@ -209,7 +209,7 @@ def edit_institution(inst_id):
     inst_type = data.get("type", "").strip()
 
     if not full_name or not short_name or inst_type not in ("ГБОУ", "ГБДОУ", "ОДОД"):
-        return jsonify({"error", "Неверные данные"}), 400
+        return jsonify({"error": "Неверные данные"}), 400
 
     query_db(
         "UPDATE educational_institutions SET full_name = %s, short_name = %s, type = %s WHERE id = %s",

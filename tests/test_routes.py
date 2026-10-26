@@ -54,3 +54,7 @@ def test_fill_and_view(client):
     assert "Иван" in text
     assert "30" in text
     assert "Да" in text
+
+def test_institution(client):
+    response = client.get("/institutions", data={})
+    assert response.status_code == 200
