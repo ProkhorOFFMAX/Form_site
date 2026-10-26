@@ -7,7 +7,8 @@ def test_validate_fields():
     fields = [
         {"id": "f1", "label": "Имя", "type": "text"},
         {"id": "f2", "label": "Возраст", "type": "number"},
-        {"id": "f3", "label": "ОВЗ", "type": "boolean"}
+        {"id": "f3", "label": "ОВЗ", "type": "boolean"},
+        {"id": "f4", "label": "ОУ", "type": "institution"},
     ]
     ok, error = validate_fields(fields)
     assert error is None
@@ -20,7 +21,6 @@ def test_empty_label():
     ok, error = validate_fields(fields)
     assert ok is False
     assert error == err.ErrorMessages.MISSING_LABEL
-
 
 def test_empty_fields():
     fields = [

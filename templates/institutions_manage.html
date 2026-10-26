@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Управление ОУ</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f4f4f4; }
+        tr.selected { background-color: #d0e0ff; }
+        tr:hover { cursor: pointer; background-color: #f9f9f9; }
+        .toolbar { margin: 16px 0; display: flex; gap: 8px; align-items: center; }
+        .toolbar select { padding: 4px; }
+        button { padding: 6px 12px; cursor: pointer; }
+        .danger { background: #e74c3c; color: white; border: none; }
+        .primary { background: #3498db; color: white; border: none; }
+        dialog { border: 1px solid #ccc; border-radius: 8px; padding: 20px; width: 800px; }
+        dialog::backdrop { background: rgba(0,0,0,0.4); }
+        dialog label { display: block; margin: 12px 0 4px; }
+        dialog input, dialog select { width: 100%; padding: 6px; box-sizing: border-box; }
+        .dialog-actions { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
+    </style>
+</head>
+<body>
+    <h1>Управление образовательными учреждениями</h1>
+
+    <div class="toolbar">
+        <label>Тип:
+            <select id="type-filter">
+                <option value="ГБОУ" {% if current_type=='ГБОУ' %}selected{% endif %}>ГБОУ</option>
+                <option value="ГБДОУ" {% if current_type=='ГБДОУ' %}selected{% endif %}>ГБДОУ</option>
+                <option value="ОДОД" {% if current_type=='ОДОД' %}selected{% endif %}>ОДОД</option>
+            </select>
+        </label>
+        <button class="primary" id="btn-create">Создать новое ОУ</button>
+        <button class="danger" id="btn-delete" disabled>Удалить выбранное</button>
+        <button id="btn-edit" disabled>Редактировать</button>
+    </div>
+
+    <table id="institutions-table">
+        <thead>
+            <tr>
+                <th>Полное наименование</th>
+                <th>Сокращённое</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            {% for inst in institutions %}
+            <tr data-id="{{ inst.id }}" data-full="{{ inst.full_name }}"
+                data-short="{{ inst.short_name }}" data-type="{{ inst.type }}">
+                <td>{{ inst.full_name }}</td>
+                <td>{{ inst.short_name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Диалог создания/редактирования -->
+    <dialog id="edit-dialog">
+        <h2 id="dialog-title">Создать ОУ</h2>
+        <form id="edit-form" method="dialog">
+            <input type="hidden" id="edit-id">
+            <input type="hidden" id="edit-current-type" name="current_type" value="{{ current_type}}">
+            <label>Полное наименование: <input type="text" id="edit-full" required></label>
+            <label>Сокращённое: <input type="text" id="edit-short" required></label>
+            <label>Тип:
+                <select id="edit-type">
+                    <option value="ГБОУ">ГБОУ</option>
+                    <option value="ГБДОУ">ГБДОУ</option>
+                    <option value="ОДОД">ОДОД</option>
+                </select>
+            </label>
+            <div class="dialog-actions">
+                <button type="button" id="dialog-cancel">Отмена</button>
+                <button type="submit" class="primary">Сохранить</button>
+            </div>
+        </form>
+    </dialog>
+    <p><a href="/">Назад</a></p>
+
+    <script src="{{ url_for('static', filename='js/institutions_manage.js') }}"></script>
+</body>
+</html>

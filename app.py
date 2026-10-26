@@ -176,3 +176,89 @@ def get_institutions(inst_type):
         {"id": r["id"],"full_name": r["full_name"],"short_name": r["short_name"]}
         for r in rows
     ])
+
+@app.route("/institutions")
+def institutions_list():
+    """Страница управления ОУ с таблицей."""
+
+    inst_type = request.args.get("type", 'ГБОУ')
+    if inst_type not in ("ГБОУ", "ГБДОУ", "ОДОД"):
+        inst_type = "ГБОУ"
+
+    institutions = query_db(
+        "SELECT id, full_name, short_name FROM educational_institutions "
+        "WHERE type = %s ORDER BY short_name",
+        (inst_type,)
+    )
+    return render_template("institutions_manage.html", institutions=institutions, current_type=inst_type)
+
+@app.route("/institutions/delete/<int:inst_id>", methods=["POST"])
+def delete_institution(inst_id):
+    exists = query_db("SELECT id FROM educational_institutions WHERE id = %s", (inst_id,))
+    if not exists:
+        return jsonify({"error": "ОУ не найдено"})
+
+    query_db("DELETE FROM educational_institutions WHERE id = %s", (inst_id,), fetch=False)
+    return jsonify({"success": True})
+
+@app.route("/institutions/edit/<int:inst_id>", methods=["POST"])
+def edit_institution(inst_id):
+    data = request.get_json() if request.is_json else request.form
+    full_name = data.get("full_name", "").strip()
+    short_name = data.get("short_name", "").strip()
+    inst_type = data.get("type", "").strip()
+
+    if not full_name or not short_name or inst_type not in ("ГБОУ", "ГБДОУ", "ОДОД"):
+        return jsonify({"error", "Неверные данные"}), 400
+
+    query_db(
+        "UPDATE educational_institutions SET full_name = %s, short_name = %s, type = %s WHERE id = %s",
+        (full_name, short_name, inst_type, inst_id),
+        fetch=False
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/institutions/create", methods=["GET", "POST"])
+def create_institution():
+    if request.method == "POST":
+
+        current_type = request.form.get("current_type", "ГБОУ")
+        # Универсальное чтение: JSON или form-data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form
+
+        full_name = data.get("full_name", "").strip()
+        short_name = data.get("short_name", "").strip()
+        inst_type = data.get("type", "").strip()
+
+        # Валидация
+        if not full_name or not short_name:
+            error = "Заполните все поля"
+            if request.is_json:
+                return jsonify({"error": error}), 400
+            return render_template("institution_form.html", error=error)
+
+        if inst_type not in ("ГБОУ", "ГБДОУ", "ОДОД"):
+            error = "Неверный тип"
+            if request.is_json:
+                return jsonify({"error": error}), 400
+            return render_template("institution_form.html", error=error)
+
+        # Сохранение
+        query_db(
+            "INSERT INTO educational_institutions (full_name, short_name, type) "
+            "VALUES (%s, %s, %s)",
+            (full_name, short_name, inst_type),
+            fetch=False
+        )
+
+        # Ответ
+        if request.is_json:
+            return jsonify({"success": True}), 201
+        return redirect(url_for("institutions_list", type=current_type))
+
+    # GET — форма
+    return render_template("institution_form.html")
