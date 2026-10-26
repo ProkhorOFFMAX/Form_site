@@ -11,8 +11,10 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from db import query_db
 from validators import validate_fields
 import json
+from flasgger import Swagger
 
 app = Flask(__name__)
+swagger = Swagger(app)
 
 @app.route('/')
 def index():
@@ -133,6 +135,34 @@ def responses(template_id):
 
 @app.route("/api/institutions/<string:inst_type>")
 def get_institutions(inst_type):
+    """
+    Получить список образовательных учреждений по типу
+    Это описание появится в Swagger UI
+    ---
+    parameters:
+     - name: inst_type
+       in: path
+       type: string
+       enum: ['ГБОУ', 'ГБДОУ', 'ОДОД']
+       required: true
+       description: Тип учреждения
+    responses:
+     200:
+      description: Успешный ответ со списком ОУ
+      schema:
+       type: array
+       items:
+        type: object
+        properties:
+         id:
+          type: integer
+         full_name:
+          type: string
+         short_name:
+          type: string
+     400:
+      description: Неверный тип учреждения
+    """
     if inst_type not in ('ГБОУ', "ГБДОУ", "ОДОД"):
         return jsonify({"error": "Неверный тип"}), 400
 
