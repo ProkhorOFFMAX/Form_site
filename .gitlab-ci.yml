@@ -11,6 +11,7 @@ variables:
   DB_NAME: test_db
   DB_USER: test_user
   DB_PASSWORD: test_password
+  DATABASE_URL: "postgresql+psycopg2://test_user:test_password@postgres:5432/test_db"
   # Кэш pip, чтобы не скачивать зависимости каждый раз
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
