@@ -56,16 +56,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!confirm(`Удалить ОУ «${name}»?`)) return;
 
-        fetch(`/institutions/delete/${id}`, { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success){
+        fetch(`api/institutions/${id}`, { method: 'DELETE' })
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ok, data}) => {
+                if (ok && data.success) {
                     selectedRow.remove();
-                    selectedRow = null;
-                    btnDelete.disabled = true;
-                    btnEdit.disabled = true;
                 } else {
-                    alert('Ошибка удаления: ' + (data.error || 'неизвестно'))
+                    alert(data.error || 'Ошибка удаления');
                 }
             });
     });
@@ -106,8 +103,6 @@ document.addEventListener('DOMContentLoaded', function() {
            alert('Заполните все поля');
            return;
        }
-       const url = id ? `/institutions/edit/${id}` : '/institutions/create';
-       const method = 'POST';
 
        const formData = new FormData()
        formData.append('full_name', payload.full_name);
@@ -115,16 +110,38 @@ document.addEventListener('DOMContentLoaded', function() {
        formData.append('type', payload.type);
        formData.append('current_type', currentType); // передаём фильтр
 
-       fetch(url, { method: 'POST', body: formData })
-           .then(r => {
-               if (r.ok) {
-                   dialog.close();
-                   // Перезагружаем таблицу (простой способ)
-                   window.location.href = `/institutions?type=${encodeURIComponent(currentType)}`;
-               } else {
-                   return r.json().then(err => {throw new Error(err.error || 'Ошибка'); });
-               }
-           });
+       if (id) {
+           fetch(`/api/institutions/${id}`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json'},
+               body: JSON.stringify(payload)
+           })
+               .then(r => r.json().then(data => ({ok: r.ok, data})))
+               .then(({ ok, data}) => {
+                   if (ok && data.success) {
+                       dialog.close();
+                       location.reload()
+                   } else {
+                       alert(data.error || 'Ошибка создания');
+                   }
+
+               });
+       } else {
+            fetch(`/api/institutions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (ok && data.success) {
+                    dialog.close();
+                    window.location.href = `/institutions?type=${encodeURIComponent(currentType)}`;
+                } else {
+                    alert(data.error || 'Ошибка обновления');
+                }
+            });
+       }
 
     });
 });

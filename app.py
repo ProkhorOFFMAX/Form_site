@@ -8,7 +8,7 @@ from sqlalchemy.engine import row
 load_dotenv()
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from db import query_db
+from db import query_db, get_connection
 from validators import validate_fields
 import json
 from flasgger import Swagger
@@ -176,6 +176,73 @@ def get_institutions(inst_type):
         {"id": r["id"],"full_name": r["full_name"],"short_name": r["short_name"]}
         for r in rows
     ])
+
+@app.route("/api/institutions/id/<int:inst_id>")
+def get_institution(inst_id):
+    rows = query_db("SELECT id, full_name, short_name, type "
+                    "FROM educational_institutions "
+                    "WHERE id = %s",
+                    (inst_id,)
+                    )
+    if not rows:
+        return jsonify({"success": False, "error": "ОУ не найдено"}), 404
+    return jsonify(rows[0])
+
+@app.route("/api/institutions", methods=["POST"])
+def api_create_institution():
+    data = request.get_json() if request.is_json else request.form
+    full_name = data.get("full_name", "").strip()
+    short_name = data.get("short_name", "").strip()
+    inst_type = data.get("type", "").strip()
+    if not full_name or not short_name:
+        return jsonify({"success": False, "error": "Заполните все поля"}), 400
+    if inst_type not in ("ГБОУ", "ГБДОУ", "ОДОД"):
+        return jsonify({"success": False, "error": "Неверный тип"}), 400
+
+    rows = query_db("INSERT INTO educational_institutions (full_name, short_name, type) "
+        "VALUES (%s, %s, %s) RETURNING id",
+        (full_name, short_name, inst_type),
+        fetch=False
+    )
+    new_id = rows[0]["id"]
+    return jsonify({"success": True, "id": new_id}), 201
+
+@app.route("/api/institutions/<int:inst_id>", methods=["PUT"])
+def api_edit_institution(inst_id):
+    data = request.get_json() if request.is_json else request.form
+    full_name = data.get("full_name", "").strip()
+    short_name = data.get("short_name", "").strip()
+    inst_type = data.get("type", "").strip()
+
+    # Валидация
+    if not full_name or not short_name:
+        return jsonify({"success": False, "error": "Заполните все поля"}), 400
+    if inst_type not in ("ГБОУ", "ГБДОУ", "ОДОД"):
+        return jsonify({"success": False, "error": "Неверный тип"}), 400
+
+    # Проверка существования
+    exists = query_db("SELECT id FROM educational_institutions WHERE id = %s", (inst_id,))
+    if not exists:
+        return jsonify({"success": False, "error": "ОУ не найдено"}), 404
+
+    # Обновление
+    query_db(
+        "UPDATE educational_institutions SET full_name = %s, short_name = %s, type = %s WHERE id = %s",
+        (full_name, short_name, inst_type, inst_id),
+        fetch=False
+    )
+
+    return jsonify({"success": True})
+
+@app.route("/api/institutions/<int:inst_id>", methods=["DELETE"])
+def api_delete_institution(inst_id):
+    # Проверка существования
+    exists = query_db("SELECT id FROM educational_institutions WHERE id = %s", (inst_id,))
+    if not exists:
+        return jsonify({"success": False, "error": "ОУ не найдено"}), 404
+    query_db("DELETE FROM educational_institutions WHERE id = %s", (inst_id,), fetch=False)
+    return jsonify({"success": True})
+
 
 @app.route("/institutions")
 def institutions_list():

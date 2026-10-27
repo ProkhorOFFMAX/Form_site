@@ -30,6 +30,10 @@ def query_db(sql, params=None, fetch=True):
             cur.execute(sql, params)
             if fetch:
                 return cur.fetchall()
+            if cur.description is not None: #cur.description — это атрибут курсора psycopg2. Он равен None, если запрос не возвращает строки (обычный INSERT, UPDATE, DELETE без RETURNING). Если запрос содержит RETURNING, description будет не None, и fetchall() вернёт результат.
+                result = cur.fetchall()
+                conn.commit()
+                return result
             conn.commit()
     finally:
         conn.close()
