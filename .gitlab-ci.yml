@@ -39,7 +39,7 @@ test:
       junit: report.xml
       coverage_report:
         coverage_format: cobertura
-        path: coverege.xml
+        path: coverage.xml
     paths:
       - report.xml
       - coverage.xml
