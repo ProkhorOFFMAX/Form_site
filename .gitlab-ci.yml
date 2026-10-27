@@ -68,9 +68,29 @@ test_unit:
 
 # API-тесты
 test_api:
-  <<: *test_template
+  stage: test
+  needs: ["test_schema"]
+  image: python:3.11
+  tags:
+    - docker
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  before_script:
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install pytest pytest-cov
+    - alembic upgrade head
   script:
-    - pytest -m api -v --junitxml=report-api.xml --cov=. --cov-report=xml:coverage-api.xml
+    - pytest -m api -v --junitxml=report-api.xml 2>&1 | tee test-api.log --cov=. --cov-report=xml:coverage-api.xml
+  after_script:
+    - |
+      if [ "$CI_JOB_STATUS" == "failed" ]; then
+              LOG_LINE=$(cat test-api.log | tail -50 | tr '\n' ' ' | sed 's/"/\\"/g')
+              curl -X POST "http://172.17.0.1:3100/loki/api/v1/push" \
+                -H "Content-Type: application/json" \
+                -d "{\"streams\": [{\"stream\": {\"job\": \"gitlab-ci\", \"test_group\": \"api\", \"status\": \"failed\"}, \"values\": [[\"$(date +%s%N)\", \"$LOG_LINE\"]]}]}"
+      fi
   artifacts:
     when: always
     reports:
