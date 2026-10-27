@@ -32,8 +32,14 @@ test:
     - pip install -r requirements.txt
     - pip install pytest
     - alembic upgrade head
-    - pytest -v --junitxml=report.xml
+    - pytest -v --junitxml=report.xml --cov=. --cov-report=xml:coverage.xml
   artifacts:
     when: always
     reports:
       junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverege.xml
+    paths:
+      - report.xml
+      - coverage.xml

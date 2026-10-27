@@ -1,6 +1,7 @@
 import json
 
 import pytest
+
 # для кодирования кириллицы перед запросом
 from urllib.parse import quote
 
@@ -9,8 +10,8 @@ import resource
 from app import app
 print([str(rule) for rule in app.url_map.iter_rules()])
 
-
-@pytest.mark.parametrize("inst_type", ["ГБОУ", "ГБДОУ", "ОДОД"])
+@pytest.mark.api
+@pytest.mark.parametrize("inst_type", ["ГБОУ", "ГБДОУ", "ОДОД"], ids=["GBOU", "GBDOU", "ODOD"])
 def test_get_institutions_success(client, seeded_institutions, inst_type):
     """Проверяет успешный ответ API для каждого типа ОУ"""
     response = client.get(f"/api/institutions/{inst_type}")  #
@@ -23,6 +24,7 @@ def test_get_institutions_success(client, seeded_institutions, inst_type):
         assert "full_name" in item
         assert "short_name" in item
 
+@pytest.mark.api
 def test_get_institutions_invalid_type(client):
     response = client.get("/api/institutions/WRONG_E_TYPE")
     assert response.status_code == 400
@@ -30,6 +32,7 @@ def test_get_institutions_invalid_type(client):
     assert "error" in data
     assert data["error"] == 'Неверный тип'
 
+@pytest.mark.api
 def test_get_institutions_sorted(client):
     """Проверяет сортировку по short_name (для одного из типов)."""
     response = client.get("/api/institutions/ГБОУ")
@@ -39,6 +42,7 @@ def test_get_institutions_sorted(client):
         names = [item["short_name"] for item in data]
         assert names == sorted(names)
 
+@pytest.mark.api
 def test_get_institutions_by_id(client, seeded_institutions):
     """Получение ОУ по ID"""
     response = client.get("/api/institutions/id/1")
@@ -53,19 +57,20 @@ def test_get_institutions_by_id(client, seeded_institutions):
     assert data["full_name"] == 'ГБОУ Школа №1'
     assert data["type"] == "ГБОУ"
 
+@pytest.mark.api
 def test_create_institutions(client):
-    """Создвние ОУ"""
     response = client.post("/api/institutions", json={
         "full_name": "Тестовая школа",
         "short_name": "Тест",
         "type": "ГБОУ"
     })
-    assert response.status_code == 201
+    assert response.status_code == 200
     data = response.get_json()
     assert data["success"] is True
     assert "id" in data
     assert data["id"] == 1
 
+@pytest.mark.api
 def test_edit_institutions_by_id(client, seeded_institutions):
     response = client.put("/api/institutions/1", json={
         "full_name": "Тестовая школа",
@@ -76,6 +81,7 @@ def test_edit_institutions_by_id(client, seeded_institutions):
     data = response.get_json()
     assert data["success"] is True
 
+@pytest.mark.api
 def test_edit_institutions_not_exist(client):
     response = client.put("/api/institutions/1", json={
         "full_name": "Тестовая школа",

@@ -1,8 +1,10 @@
 from getopt import error
 import errors as err
+import pytest
 
 from validators import validate_fields
 
+@pytest.mark.unit
 def test_validate_fields():
     fields = [
         {"id": "f1", "label": "Имя", "type": "text"},
@@ -14,6 +16,7 @@ def test_validate_fields():
     assert error is None
     assert ok is True
 
+@pytest.mark.unit
 def test_empty_label():
     fields = [
         {"id": "f1", "label": "", "type": "text"},
@@ -22,6 +25,7 @@ def test_empty_label():
     assert ok is False
     assert error == err.ErrorMessages.MISSING_LABEL
 
+@pytest.mark.unit
 def test_empty_fields():
     fields = [
     ]
@@ -29,18 +33,21 @@ def test_empty_fields():
     assert ok is False
     assert error == err.ErrorMessages.EMPTY_FIELDS
 
+@pytest.mark.unit
 def test_fields_is_string():
     fields = "hello world"
     ok, error = validate_fields(fields)
     assert ok is False
     assert error == err.ErrorMessages.EMPTY_FIELDS
 
+@pytest.mark.unit
 def test_fields_no_label():
     fields = [{"id": "f1", "type": "text"}]
     ok, error = validate_fields(fields)
     assert ok is False
     assert error == err.ErrorMessages.MISSING_LABEL
 
+@pytest.mark.unit
 def test_empty_type():
     fields = [
         {"id": "f1", "label": "empty_type", "type": ""},
@@ -49,6 +56,7 @@ def test_empty_type():
     assert ok is False
     assert error == err.ErrorMessages.WRONG_TYPE
 
+@pytest.mark.unit
 def test_fields_no_type():
     fields = [
         {"id": "f1", "label": "no_type"},
@@ -57,6 +65,7 @@ def test_fields_no_type():
     assert ok is False
     assert error == err.ErrorMessages.MISSING_TYPE
 
+@pytest.mark.unit
 def test_fields_wrong_type():
     fields = [
         {"id": "f1", "label": "wrong_type", "type": "wrong_type"},

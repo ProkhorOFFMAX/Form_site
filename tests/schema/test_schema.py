@@ -1,7 +1,9 @@
 import psycopg2
+import pytest
+
 
 # Тесты для проверки создания БД
-
+@pytest.mark.schema
 def test_institutions_table_schema(test_db_url):
     conn = psycopg2.connect(test_db_url)
     try:
@@ -21,6 +23,7 @@ def test_institutions_table_schema(test_db_url):
     assert columns["short_name"] == "character varying"
     assert columns["type"] == "character varying"
 
+@pytest.mark.schema
 def test_institutions_check_constraint(test_db_url):
     conn = psycopg2.connect(test_db_url)
     try:
