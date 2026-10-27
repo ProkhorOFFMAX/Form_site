@@ -87,7 +87,7 @@ test_api:
   after_script:
     - |
       if [ "$CI_JOB_STATUS" == "failed" ]; then
-              LOG_LINE=$(cat test-api.log | tail -50 | tr '\n' ' ' | sed 's/"/\\"/g')
+              LOG_LINE=$(cat test-api.log | tail -50 | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
               curl -X POST "http://172.17.0.1:3100/loki/api/v1/push" \
                 -H "Content-Type: application/json" \
                 -d "{\"streams\": [{\"stream\": {\"job\": \"gitlab-ci\", \"test_group\": \"api\", \"status\": \"failed\"}, \"values\": [[\"$(date +%s%N)\", \"$LOG_LINE\"]]}]}"
