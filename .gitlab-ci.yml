@@ -19,7 +19,8 @@ cache:
   paths:
     - .cache/pip
 
-test:
+# Общий шаблон для тестовых задач (чтобы не дублировать код)
+.test_template: &test_template
   stage: test
   image: python:3.11
   tags:
@@ -27,19 +28,59 @@ test:
   services:
     - name: postgres:16-alpine
       alias: postgres
-  script:
+  before_script:
     - pip install --upgrade pip
     - pip install -r requirements.txt
-    - pip install pytest
+    - pip install pytest pytest-cov
     - alembic upgrade head
-    - pytest -v --junitxml=report.xml --cov=. --cov-report=xml:coverage.xml
+
+# Проверка БД
+test_schema:
+  <<: *test_template
+  script:
+    - pytest -m schema -v --junitxml=report-schema.xml --cov=. --cov-report=xml:coverage-schema.xml
   artifacts:
     when: always
     reports:
-      junit: report.xml
+      junit: report-schema.xml
       coverage_report:
         coverage_format: cobertura
-        path: coverage.xml
+        path: coverage-schema.xml
+      paths:
+        - report-schema.xml
+        - coverage-schema.xml
+
+# Юнит-тесты (быстрые, без БД)
+test_unit:
+  <<: *test_template
+  script:
+    - pytest -m unit -v --junitxml=report-unit.xml --cov=. --cov-report=xml:coverage-unit.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report-unit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage-unit.xml
     paths:
-      - report.xml
-      - coverage.xml
+      - report-unit.xml
+      - coverage-unit.xml
+
+# API-тесты
+test_api:
+  <<: *test_template
+  script:
+    - pytest -m api -v --junitxml=report-api.xml --cov=. --cov-report=xml:coverage-api.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report-api.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage-api.xml
+      paths:
+        - report-api.xml
+        - coverage-api.xml
+
+
+
