@@ -62,9 +62,9 @@ test_unit:
       coverage_report:
         coverage_format: cobertura
         path: coverage-unit.xml
-  paths:
-    - report-unit.xml
-    - coverage-unit.xml
+    paths:
+     - report-unit.xml
+     - coverage-unit.xml
 
 # API-тесты
 test_api:
@@ -78,9 +78,9 @@ test_api:
       coverage_report:
         coverage_format: cobertura
         path: coverage-api.xml
-  paths:
-    - report-api.xml
-    - coverage-api.xml
+    paths:
+     - report-api.xml
+     - coverage-api.xml
 
 
 
