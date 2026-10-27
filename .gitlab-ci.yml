@@ -82,7 +82,8 @@ test_api:
     - pip install pytest pytest-cov
     - alembic upgrade head
   script:
-    - pytest -m api -v --junitxml=report-api.xml 2>&1 | tee test-api.log --cov=. --cov-report=xml:coverage-api.xml
+    - coverage run -m pytest -m api -v --junitxml=report-api.xml 2>&1 | tee test-api.log
+    - coverage xml -o coverage-api.xml
   after_script:
     - |
       if [ "$CI_JOB_STATUS" == "failed" ]; then
