@@ -196,6 +196,9 @@
                     <option value="">— загрузка... —</option>
                 </select>
             </label>
+            <div id="existing-options-preview" style="margin: 12px 0;">
+                <p style="color: #888; font-style: italic;">Выберите поле, чтобы увидеть варианты</p>
+            </div>
             <div class="dialog-actions">
                 <button type="button" id="btn-add-existing">Добавить</button>
                 <button type="button" class="cancel">Отмена</button>
@@ -249,6 +252,8 @@
             // Очистка вкладки "Выбрать существующее"
             document.getElementById('existing-field-select').value = '';
             document.getElementById('existing-field-label').value = '';
+            document.getElementById('existing-options-preview').innerHTML = '<p style="color: #888; font-style: italic;">Выберите поле, чтобы увидеть варианты</p>';
+
         }
 
         // --- Сброс диалога при открытии ---
@@ -508,6 +513,44 @@
                 labelInput.value = selectedOption.textContent;
             } else {
                 labelInput.value = '';
+            }
+        });
+
+        document.getElementById('existing-field-select').addEventListener('change', async function() {
+            const fieldId = parseInt(this.value);
+            const preview = document.getElementById('existing-options-preview');
+            const labelInput = document.getElementById('existing-field-label');
+            if (!fieldId) {
+                preview.innerHTML = '<p style="color: #888; font-style: italic;">Выберите поле, чтобы увидеть варианты</p>';
+                labelInput.value = '';
+                return;
+            }
+
+            // Подставляем название справочника в поле локального названия
+            const selectedOption = this.options[this.selectedIndex];
+            labelInput.value = selectedOption.textContent;
+
+            // Загружаем варианты
+            preview.innerHTML = '<p>Загрузка вариантов...</p>';
+            try {
+                const response = await fetch(`/api/custom_fields/${fieldId}/options`);
+                const options = await response.json();
+
+                if (options.length === 0) {
+                    preview.innerHTML = '<p style="color: #888; font-style: italic;">У этого поля нет вариантов</p>';
+                    return;
+                }
+
+                // Строим таблицу
+                let html = '<table border="1" cellpadding="4" style="border-collapse: collapse; width: 100%;">';
+                html += '<thead><tr><th>#</th><th>Вариант</th></tr></thead><tbody>';
+                options.forEach((opt, i) => {
+                html += `<tr><td>${i + 1}</td><td>${opt.label}</td></tr>`;
+                });
+                html += '</tbody></table>';
+                preview.innerHTML = html;
+            } catch (err) {
+                preview.innerHTML = '<p style="color: red;">Ошибка загрузки вариантов</p>';
             }
         });
 
