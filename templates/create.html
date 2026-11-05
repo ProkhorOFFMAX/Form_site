@@ -47,6 +47,79 @@
             color: #888;
             font-style: italic;
         }
+        /* Контейнер вкладок */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Кнопка вкладки */
+        .tab {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .tab:hover {
+            color: #000;
+        }
+
+        /* Активная вкладка */
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+            font-weight: bold;
+        }
+
+        /* Секция контента — скрыта по умолчанию */
+        .tab-content {
+            display: none;
+        }
+
+        /* Активная секция — видна */
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Отступы внутри секций */
+        .tab-content label {
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .tab-content input[type="text"],
+        .tab-content select,
+        .tab-content textarea {
+            width: 100%;
+            padding: 6px;
+            box-sizing: border-box;
+            margin-top: 4px;
+        }
+
+        .dialog-actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        /* Стили для диалога */
+        dialog {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            width: 450px;
+        }
+
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -67,7 +140,7 @@
         <div id="fields-container"></div>
 
         <p>
-            <button type="button" class="add-btn" onclick="addField()">+ Добавить поле</button>
+            <button type="button" class="add-btn" id="btn-add-field">+ Добавить поле</button>
         </p>
 
         <!-- Скрытое поле: сюда JavaScript положит JSON -->
@@ -78,70 +151,367 @@
             <a href="{{ url_for('index') }}">Отмена</a>
         </p>
     </form>
+    <dialog id="add-field-dialog">
+        <h2>Добавить поле</h2>
+
+        <!-- Вкладки -->
+        <div class="tabs">
+            <button type="button" class="tab active" data-tab="new">Создать новое</button>
+            <button type="button" class="tab" data-tab="existing">Выбрать существующее</button>
+        </div>
+
+        <!-- Секция 1: Создать новое поле -->
+        <div id="tab-new" class="tab-content active">
+            <label>Название поля: <input type="text" id="new-field-label" placeholder="Например, город">
+            </label>
+
+            <label>Тип поля:
+                <select id="new-field-type">
+                    <option value="text">Текст</option>
+                    <option value="number">Число</option>
+                    <option value="boolean">Да/Нет</option>
+                    <option value="institution">Образовательное учреждение</option>
+                    <option value="custom_select">Выбор из списка</option>
+                </select>
+            </label>
+
+            <div id="options-block" style="display: none;">
+                <label>Варианты значений:</label>
+                    <div id="options-container"></div>
+                    <button type="button" class="add-btn" id="btn-add-option">+ Добавить вариант</button>
+                </label>
+            </div>
+            <div class="dialog-actions">
+                <button type="button" id="btn-create-new">Создать и добавить</button>
+                <button type="button" class="cancel">Отмена</button>
+            </div>
+        </div>
+
+        <div id="tab-existing" class="tab-content">
+            <label>Название поля в анкете:
+                <input type="text" id="existing-field-label" placeholder="Например, Город проживания">
+            </label>
+            <label>Существующее поле:
+                <select id="existing-field-select">
+                    <option value="">— загрузка... —</option>
+                </select>
+            </label>
+            <div class="dialog-actions">
+                <button type="button" id="btn-add-existing">Добавить</button>
+                <button type="button" class="cancel">Отмена</button>
+            </div>
+        </div>
+    </dialog>
 
     <script>
+        const optionsContainer = document.getElementById('options-container');
         const container = document.getElementById('fields-container');
         const hiddenInput = document.getElementById('fields_json');
 
-        function addField() {
+        function addOptionRow(value = '') {
             const row = document.createElement('div');
-            row.className = 'field-row';
+            row.className = 'option-row';
+            row.style.display = 'flex';
+            row.style.gap = '8px';
+            row.style.marginBottom = '6px';
 
-            // Поле для названия
-            const labelInput = document.createElement('input');
-            labelInput.type = 'text';
-            labelInput.placeholder = 'Название поля (например, «Имя»)';
-            labelInput.addEventListener('input', updateHidden);
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Вариант (например, Москва)';
+            input.value = value;
+            input.style.flex = '1';
+            input.className = 'option-input';
 
-            // Выпадающий список типа
-            const typeSelect = document.createElement('select');
-            typeSelect.innerHTML = `
-                <option value="text">Текст</option>
-                <option value="number">Число</option>
-                <option value="boolean">Да/Нет</option>
-                <option value="institution">Образовательное учреждение</option>
-            `;
-            typeSelect.addEventListener('change', updateHidden);
-
-            // Кнопка удаления
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.className = 'remove-btn';
             removeBtn.textContent = '✕';
             removeBtn.addEventListener('click', () => {
                 row.remove();
-                updateHidden();
             });
 
-            row.appendChild(labelInput);
-            row.appendChild(typeSelect);
+            row.appendChild(input);
             row.appendChild(removeBtn);
-            container.appendChild(row);
-
-            updateHidden();
-            labelInput.focus();
+            optionsContainer.appendChild(row);
+            input.focus();
         }
 
-        function updateHidden() {
-            const rows = container.querySelectorAll('.field-row');
-            const fields = [];
+        document.getElementById('btn-add-option').addEventListener('click', () => {
+            addOptionRow();
+        });
 
-            rows.forEach((row, index) => {
-                const label = row.querySelector('input[type="text"]').value.trim();
-                const type = row.querySelector('select').value;
+        // --- Очистка диалога ---
+        function clearDialog() {
+            document.getElementById('new-field-label').value = '';
+            document.getElementById('new-field-type').value = 'text';
+            document.getElementById('options-block').style.display = 'none';
+            optionsContainer.innerHTML = '';
+            // Очистка вкладки "Выбрать существующее"
+            document.getElementById('existing-field-select').value = '';
+            document.getElementById('existing-field-label').value = '';
+        }
 
-                // Пропускаем пустые поля (не добавляем в JSON, но нумеруем по порядку)
-                if (label === '') return;
+        // --- Сброс диалога при открытии ---
+        document.getElementById('btn-add-field').addEventListener('click', function() {
+            clearDialog();
+            document.getElementById('add-field-dialog').showModal();
+            loadCustomFields();
+        });
 
-                fields.push({
-                    id: 'f' + (fields.length + 1),
-                    label: label,
-                    type: type
+        // --- Отрисовка списка полей (замена старой renderFields) ---
+        function renderFields() {
+            const fields = getCurrentFields();
+            container.innerHTML = '';
+
+            fields.forEach((field, index) => {
+                const row = document.createElement('div');
+                row.className = 'field-row';
+
+                // --- 1. Название поля (input) ---
+                const labelInput = document.createElement('input');
+                labelInput.type = 'text';
+                labelInput.placeholder = 'Название поля';
+                labelInput.value = field.label || '';
+                labelInput.addEventListener('input', function() {
+                    field.label = this.value.trim();
+                    hiddenInput.value = JSON.stringify(fields);
                 });
+                row.appendChild(labelInput);
+
+                // --- 2. Справочник (select) — только для custom_select ---
+                if (field.type === 'custom_select') {
+                    const refSelect = document.createElement('select');
+                    refSelect.innerHTML = '<option value="">— загрузка... —</option>';
+
+                    fetch('/api/custom_fields')
+                        .then(r => r.json())
+                        .then(refFields => {
+                            refSelect.innerHTML = '<option value="">— справочник —</option>';
+                            refFields.forEach(f => {
+                                const opt = document.createElement('option');
+                                opt.value = f.id;
+                                opt.textContent = f.label;
+                                if (f.id === field.field_id) opt.selected = true;
+                                refSelect.appendChild(opt);
+                            });
+                        });
+
+                    refSelect.addEventListener('change', function() {
+                        field.field_id = parseInt(this.value);
+                        hiddenInput.value = JSON.stringify(fields);
+                    });
+
+                    row.appendChild(refSelect);
+                }
+
+                // --- 3. Тип поля (select) ---
+                const typeSelect = document.createElement('select');
+                typeSelect.innerHTML = `
+                    <option value="text">Текст</option>
+                    <option value="number">Число</option>
+                    <option value="boolean">Да/Нет</option>
+                    <option value="institution">Образовательное учреждение</option>
+                    <option value="custom_select">Выбор из списка</option>
+                `;
+                typeSelect.value = field.type;
+                typeSelect.addEventListener('change', function() {
+                    field.type = this.value;
+                    hiddenInput.value = JSON.stringify(fields);
+                    renderFields(); // перерисовываем, чтобы показать/скрыть справочник
+                });
+                row.appendChild(typeSelect);
+
+                // --- 4. Кнопка удаления ---
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = '✕';
+                removeBtn.addEventListener('click', () => {
+                    fields.splice(index, 1);
+                    fields.forEach((f, i) => { f.id = 'f' + (i + 1); });
+                    hiddenInput.value = JSON.stringify(fields);
+                    renderFields();
+                });
+                row.appendChild(removeBtn);
+
+                container.appendChild(row);
+            });
+        }
+
+        // --- Вспомогательные функции ---
+        function getCurrentFields() {
+            try {
+                return JSON.parse(hiddenInput.value || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        function addFieldToTemplate(field) {
+            const fields = getCurrentFields();
+            fields.push(field);
+            hiddenInput.value = JSON.stringify(fields);
+            renderFields();
+        }
+
+        // --- Вкладки ---
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById(`tab-${this.dataset.tab}`).classList.add('active');
+            });
+        });
+
+        // --- Показ/скрытие блока вариантов ---
+         document.getElementById('new-field-type').addEventListener('change', function() {
+            const optionsBlock = document.getElementById('options-block');
+            if (this.value === 'custom_select') {
+                optionsBlock.style.display = 'block';
+                // Если контейнер пуст — добавляем одну строку для удобства
+                if (optionsContainer.children.length === 0) {
+                    addOptionRow();
+                }
+            } else {
+                optionsBlock.style.display = 'none';
+                optionsContainer.innerHTML = '';
+            }
+        });
+
+        // --- Загрузка существующих полей ---
+        async function loadCustomFields() {
+            const select = document.getElementById('existing-field-select');
+            select.innerHTML = '<option value="">— загрузка... —</option>';
+            try {
+                const response = await fetch('/api/custom_fields');
+                const fields = await response.json();
+                select.innerHTML = '<option value="">— выберите поле —</option>';
+                fields.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.id;
+                    opt.textContent = f.label;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                select.innerHTML = '<option value="">Ошибка загрузки</option>';
+            }
+        }
+
+        // --- Открытие диалога ---
+        document.getElementById('btn-add-field').addEventListener('click', function() {
+            document.getElementById('add-field-dialog').showModal();
+            loadCustomFields();
+        });
+
+        // --- Создать новое поле ---
+        document.getElementById('btn-create-new').addEventListener('click', async function() {
+            const label = document.getElementById('new-field-label').value.trim();
+            const type = document.getElementById('new-field-type').value;
+
+
+            if (!label) {
+                alert('Введите название поля');
+                return;
+            }
+
+            if (type === 'custom_select') {
+                // Собираем варианты из строк
+                const optionInputs = optionsContainer.querySelectorAll('.option-input');
+                const options = Array.from(optionInputs)
+                    .map(inp => inp.value.trim())
+                    .filter(v => v);
+                if (options.length === 0) {
+                    alert('Добавьте хотя бы один вариант');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/custom_fields', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ label, type: 'select', options })
+                    });
+                    const data = await response.json();
+
+                    if (!data.success) {
+                        alert(data.error || 'Ошибка создания поля');
+                        return;
+                    }
+
+                    addFieldToTemplate({
+                        id: 'f' + (getCurrentFields().length + 1),
+                        label: label,
+                        field_id: data.id,
+                        type: 'custom_select',
+                        required: true
+                    });
+                    clearDialog();  // <-- очищаем после добавления
+                    document.getElementById('add-field-dialog').close();
+                } catch (err) {
+                    alert('Сетевая ошибка: ' + err.message);
+                }
+            } else {
+                // Обычное поле: text, number, boolean, institution
+                addFieldToTemplate({
+                    id: 'f' + (getCurrentFields().length + 1),
+                    label: label,
+                    type: type,
+                    required: true
+                });
+                document.getElementById('add-field-dialog').close();
+            }
+        });
+
+        // --- Добавить существующее ---
+        document.getElementById('btn-add-existing').addEventListener('click', function() {
+            const fieldId = parseInt(document.getElementById('existing-field-select').value);
+            const label = document.getElementById('existing-field-label').value.trim();
+
+            if (!fieldId) {
+                alert('Выберите поле');
+                return;
+            }
+
+            if (!label) {
+                alert('Введите название поля в анкете');
+                return;
+            }
+
+            addFieldToTemplate({
+                id: 'f' + (getCurrentFields().length + 1),
+                label: label,           // локальное название
+                field_id: fieldId,      // ссылка на справочник
+                type: 'custom_select',
+                required: true
             });
 
-            hiddenInput.value = JSON.stringify(fields);
-        }
+            // Очистка диалога
+            document.getElementById('existing-field-select').value = '';
+            document.getElementById('existing-field-label').value = '';
+            document.getElementById('add-field-dialog').close();
+        });
+
+        // --- Отмена ---
+        document.querySelectorAll('.cancel').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.closest('dialog').close();
+            });
+        });
+
+        document.getElementById('existing-field-select').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const labelInput = document.getElementById('existing-field-label');
+
+            if (this.value) {
+                // Подставляем название справочника как значение по умолчанию
+                labelInput.value = selectedOption.textContent;
+            } else {
+                labelInput.value = '';
+            }
+        });
+
+
     </script>
 </body>
 </html>

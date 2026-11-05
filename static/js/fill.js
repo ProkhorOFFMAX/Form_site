@@ -21,3 +21,22 @@ document.querySelectorAll('.inst-type').forEach(function(typeSelect){
             });
     });
 });
+
+document.querySelectorAll('.custom-select').forEach(async function(select) {
+    const fieldId = select.dataset.fieldId;
+    try {
+        const response = await fetch(`/api/custom_fields/${fieldId}/options`);
+        const options = await response.json();
+
+        select.innerHTML = '<option value="">— выберите —</option>';
+
+        options.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.id;
+            option.textContent = opt.label;
+            select.appendChild(option);
+        });
+    } catch (err) {
+        select.innerHTML = '<option value="">Ошибка загрузки</option>';
+    }
+});

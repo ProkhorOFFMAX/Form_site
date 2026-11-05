@@ -87,7 +87,23 @@ def fill(template_id):
                 if not exists:
                     return render_template("fill.html", template=template, fields=fields, error=f"Выбранное ОУ не найдено")
                 value = int(raw)
-            data[field["id"]] = value
+            elif field["type"] == "custom_select":
+                value = request.form.get(field["id"], "").strip()
+                if field.get("required", True) and value == "":
+                    return render_template("fill.html", template=template, fields=fields,
+                                           error=f"Поле «{field['label']}» обязательно")
+                # Если значение выбрано, проверяем, что оно существует и принадлежит этому справочнику
+                if value != "":
+                    exists = query_db(
+                        "SELECT id FROM field_options WHERE id = %s AND field_id = %s",
+                        (int(value), field["field_id"])
+                    )
+                    if not exists:
+                        return render_template("fill.html", template=template, fields=fields,
+                                               error=f"Недопустимое значение для поля «{field['label']}»")
+                    data[field["id"]] = int(value)
+            else:
+                data[field["id"]] = value
 
             # Сохраняем
         query_db(
@@ -131,7 +147,27 @@ def responses(template_id):
         )
         inst_names = {r["id"]: r["short_name"] for r in inst_rows}
 
-    return render_template("responses.html", template=template, fields=fields, responses=rows, inst_names=inst_names)
+
+    # Собираем все ID вариантов из ответов
+    all_option_ids = set()
+    for row in rows:
+        for field in fields:
+            if field.get("type") == "custom_select":
+                opt_id = row["data"].get(field["id"])
+                if opt_id:
+                    all_option_ids.add(opt_id)
+
+    option_labels = {}
+    if all_option_ids:
+        placeholders = ",".join(["%s"] * len(all_option_ids))
+        opt_rows = query_db(
+            f"SELECT id, label FROM field_options WHERE id IN ({placeholders})",
+            tuple(all_option_ids)
+        )
+        option_labels = {r["id"]: r["label"] for r in opt_rows}
+
+    return render_template("responses.html", template=template, fields=fields, responses=rows,
+                           inst_names=inst_names, option_labels=option_labels )
 
 @app.route("/api/institutions/<string:inst_type>")
 def get_institutions(inst_type):
@@ -243,6 +279,84 @@ def api_delete_institution(inst_id):
     query_db("DELETE FROM educational_institutions WHERE id = %s", (inst_id,), fetch=False)
     return jsonify({"success": True})
 
+@app.route("/api/custom_fields", methods=["POST"])
+def api_create_custom_field():
+    data = request.get_json() if request.is_json else request.form
+    label = data.get("label", "").strip()
+    field_type = data.get("type", "select").strip()
+    options = data.get("options", [])
+
+    # Валидация
+    if not label:
+        return jsonify({"success": False, "error": "Название поля обязательно"}), 400
+    if field_type != "select":
+        return jsonify({"success": False, "error": "Неподдерживаемый тип"}), 400
+    if not isinstance(options, list) or len(options) == 0:
+        return jsonify({"success": False, "error": "Отсутсвтуют варианты для выбора"}), 400
+
+    cleaned = []
+    for opt in options:
+        opt = str(opt).strip()
+        if opt and opt not in cleaned:
+            cleaned.append(opt)
+
+    if not cleaned:
+        return jsonify({"success": False, "error": "Все варианты пустые"}), 400
+
+    row = query_db(
+        "INSERT INTO custom_fields (label, type) VALUES (%s, %s) RETURNING id",
+        (label, field_type),
+        fetch=False
+    )
+    field_id = row[0]["id"]
+
+    for i, opt_label in enumerate(cleaned):
+        query_db(
+            "INSERT INTO field_options (field_id, label, sort_order) VALUES (%s, %s, %s)",
+            (field_id, opt_label, i),
+            fetch=False
+        )
+
+    return jsonify({"success": True, "id": field_id}), 201
+
+# список кастомных полей
+@app.route("/api/custom_fields")
+def api_get_custom_fields():
+    """
+    Получить список существующих полей с выбором ответа
+    Это описание появится в Swagger UI
+    ---
+    parameters:
+     - name: inst_type
+       in: path
+    responses:
+     200:
+      description: Успешный ответ со списком полей с выбором ответа
+      schema:
+       type: array
+       items:
+        type: object
+        properties:
+         id:
+          type: integer
+         label:
+          type: string
+         type:
+          type: string
+    """
+    fields = query_db(
+        "SELECT id, label, type FROM custom_fields ORDER BY label"
+    )
+    return jsonify(fields)
+
+@app.route("/api/custom_fields/<int:field_id>/options")
+def api_get_custom_fields_options(field_id):
+    options = query_db(
+        "SELECT id, label, sort_order FROM field_options "
+        "WHERE field_id = %s ORDER BY sort_order, id",
+        (field_id,)
+    )
+    return jsonify(options)
 
 @app.route("/institutions")
 def institutions_list():
@@ -329,3 +443,4 @@ def create_institution():
 
     # GET — форма
     return render_template("institution_form.html")
+

@@ -37,6 +37,13 @@
                                 {% else %}
                                     —
                                 {% endif %}
+                            {% elif field.type == "custom_select" %}
+                                {% set opt_id = row.data.get(field.id) %}
+                                {% if opt_id %}
+                                    {{ option_labels.get(opt_id, "—") }}
+                                {% else %}
+                                    —
+                                {% endif %}
                             {% else %}
                                 {{ row.data.get(field.id, "—") }}
                             {% endif %}

@@ -35,6 +35,13 @@
                         <select class="inst-name" name="{{ field.id }}" required>
                             <option value="">- сначала выберите тип ОУ -</option>
                         </select>
+                    {% elif field.type == "custom_select" %}
+                        <select name="{{ field.id}}"
+                                class="custom-select"
+                                data-field-id="{{ field.field_id }}"
+                                {% if field.required %}required{% endif %}>
+                            <option value="">— загрузка... —</option>
+                        </select>
                     {% endif %}
                 </label>
             </p>
