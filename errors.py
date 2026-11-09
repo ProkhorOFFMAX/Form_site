@@ -6,3 +6,5 @@ class ErrorMessages:
     WRONG_FIELD = "Каждое поле должно быть объектом"
     WRONG_CUSTOM_FIELD = "У поля custom_select должен быть field_id"
     WRONG_CUSTOM_FIELD_TYPE = "field_id должен быть числом"
+    WRONG_REFERENCE_FIELD = "У поля reference_text должен быть dict_id"
+    WRONG_REFERENCE_FIELD_TYPE = "dict_id должен быть числом"

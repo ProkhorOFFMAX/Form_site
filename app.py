@@ -444,3 +444,68 @@ def create_institution():
     # GET — форма
     return render_template("institution_form.html")
 
+# --- Словари для полей с расширяемыми вариантами ---
+
+@app.route("/api/reference_dicts", methods=["GET", "POST"])
+def api_reference_dicts():
+    if request.method == "POST":
+        data = request.get_json() if request.is_json else request.form
+        name = data.get("name", "").strip()
+
+        if not name:
+            return jsonify({"success": False, "error": "Название словаря обязательно"}), 400
+
+        # Проверка на уникальность
+        exists = query_db("SELECT id FROM reference_dicts WHERE name = %s", (name,))
+        if exists:
+            return jsonify({"success": False, "error": "Словарь с таким названием уже существует"}), 400
+
+        rows = query_db(
+            "INSERT INTO reference_dicts (name) VALUES (%s) RETURNING id",
+            (name,),
+            fetch=False
+        )
+        return jsonify({"success": True, "id": rows[0]["id"]}), 201
+
+    # GET
+    dicts = query_db("SELECT id, name FROM reference_dicts ORDER BY name")
+    return jsonify(dicts)
+
+# --- Значение словаря ---
+
+@app.route("/api/reference_items", methods=["GET", "POST"])
+def api_reference_items():
+    if request.method == "POST":
+        data = request.get_json() if request.is_json else request.form
+        dict_id = data.get("dict_id")
+        label = data.get("label", "").strip()
+
+        if not dict_id or not label:
+            return jsonify({"success": False, "error": "Отсутствую dict_id и label"}), 400
+
+        dict_exist = query_db("SELECT id FROM reference_dicts WHERE id = %s", (dict_id,))
+        if not dict_exist:
+            return jsonify({"success": False, "error": "Словарь не найден"}), 404
+
+        dup = query_db(
+            "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s", (dict_id, label)
+        )
+        if dup:
+            return jsonify({"success": False, "error": "Такое значение уже есть в словаре"}), 400
+        rows = query_db(
+            "INSERT INTO reference_items (dict_id, label) VALUES (%s, %s) RETURNING id",
+            (dict_id, label),
+            fetch=False
+        )
+        return jsonify({"success": True, "id": rows[0]["id"]}), 201
+
+    #GET: Значения по dict_id
+    dict_id = request.args.get("dict_id", type=int)
+    if not dict_id:
+        return jsonify({"error": "dict_id обязателен"}), 400
+
+    items = query_db(
+        "SELECT id, label FROM reference_items WHERE dict_id = %s ORDER BY label",
+        (dict_id,)
+    )
+    return jsonify(items)

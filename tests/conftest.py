@@ -85,7 +85,8 @@ def clean_tables(test_db_url):
     """Очищает таблицы перед каждым тестом, чтобы данные не переносились."""
     conn = psycopg2.connect(test_db_url)
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE templates, responses, educational_institutions, custom_fields, field_options "
+        cur.execute("TRUNCATE templates, responses, educational_institutions, custom_fields, field_options,"
+                    "reference_dicts, reference_items "
                     "RESTART IDENTITY CASCADE;")
     conn.commit()
     conn.close()

@@ -1,0 +1,116 @@
+.field-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+.field-row input[type="text"] {
+    flex: 1;
+    padding: 4px;
+}
+.field-row select {
+    padding: 4px;
+}
+.field-row .remove-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.field-row .remove-btn:hover {
+    background: #c0392b;
+}
+.add-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.add-btn:hover {
+    background: #2980b9;
+}
+#fields-container:empty::after {
+    content: "Пока нет полей. Нажмите «+ Добавить поле».";
+    color: #888;
+    font-style: italic;
+}
+/* Контейнер вкладок */
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Кнопка вкладки */
+.tab {
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+}
+
+.tab:hover {
+    color: #000;
+}
+
+/* Активная вкладка */
+.tab.active {
+    color: #3498db;
+    border-bottom-color: #3498db;
+    font-weight: bold;
+}
+
+/* Секция контента — скрыта по умолчанию */
+.tab-content {
+    display: none;
+}
+
+/* Активная секция — видна */
+.tab-content.active {
+    display: block;
+}
+
+/* Отступы внутри секций */
+.tab-content label {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.tab-content input[type="text"],
+.tab-content select,
+.tab-content textarea {
+    width: 100%;
+    padding: 6px;
+    box-sizing: border-box;
+    margin-top: 4px;
+}
+
+.dialog-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Стили для диалога */
+dialog {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    width: 450px;
+}
+
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+}

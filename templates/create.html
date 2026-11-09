@@ -3,127 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Создать шаблон</title>
-    <style>
-        .field-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 8px;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        .field-row input[type="text"] {
-            flex: 1;
-            padding: 4px;
-        }
-        .field-row select {
-            padding: 4px;
-        }
-        .field-row .remove-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .field-row .remove-btn:hover {
-            background: #c0392b;
-        }
-        .add-btn {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .add-btn:hover {
-            background: #2980b9;
-        }
-        #fields-container:empty::after {
-            content: "Пока нет полей. Нажмите «+ Добавить поле».";
-            color: #888;
-            font-style: italic;
-        }
-        /* Контейнер вкладок */
-        .tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 16px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        /* Кнопка вкладки */
-        .tab {
-            padding: 8px 16px;
-            background: none;
-            border: none;
-            border-bottom: 2px solid transparent;
-            cursor: pointer;
-            font-size: 14px;
-            color: #666;
-        }
-
-        .tab:hover {
-            color: #000;
-        }
-
-        /* Активная вкладка */
-        .tab.active {
-            color: #3498db;
-            border-bottom-color: #3498db;
-            font-weight: bold;
-        }
-
-        /* Секция контента — скрыта по умолчанию */
-        .tab-content {
-            display: none;
-        }
-
-        /* Активная секция — видна */
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Отступы внутри секций */
-        .tab-content label {
-            display: block;
-            margin-bottom: 12px;
-        }
-
-        .tab-content input[type="text"],
-        .tab-content select,
-        .tab-content textarea {
-            width: 100%;
-            padding: 6px;
-            box-sizing: border-box;
-            margin-top: 4px;
-        }
-
-        .dialog-actions {
-            margin-top: 16px;
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-        }
-
-        /* Стили для диалога */
-        dialog {
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 20px;
-            width: 450px;
-        }
-
-        dialog::backdrop {
-            background: rgba(0, 0, 0, 0.4);
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
-    <h1>Создать шаблон анкеты</h1>
+    <h1>Создать шаблон заявки</h1>
 
     {% if error %}
         <p style="color: red;">{{ error }}</p>
@@ -168,6 +51,7 @@
             <label>Тип поля:
                 <select id="new-field-type">
                     <option value="text">Текст</option>
+                    <option value="reference_text">Текст (с выбором)</option>
                     <option value="number">Число</option>
                     <option value="boolean">Да/Нет</option>
                     <option value="institution">Образовательное учреждение</option>
@@ -181,6 +65,11 @@
                     <button type="button" class="add-btn" id="btn-add-option">+ Добавить вариант</button>
                 </label>
             </div>
+            <div id="dict-name-block" style="display: none;">
+                <label>Название словаря:
+                    <input type="text" id="new-dict-name" placeholder="Например, Стихи Пушкина">
+                </label>
+            </div>
             <div class="dialog-actions">
                 <button type="button" id="btn-create-new">Создать и добавить</button>
                 <button type="button" class="cancel">Отмена</button>
@@ -188,14 +77,26 @@
         </div>
 
         <div id="tab-existing" class="tab-content">
+            <label>Тип поля:
+                <select id="existing-field-kind">
+                    <option value="">— выберите тип —</option>
+                    <option value="reference_text">Текст (с выбором)</option>
+                    <option value="custom_select">Выбор из списка</option>
+                </select>
+            </label>
+
+            <div id="existing-ref-block" style="display: none;">
+                <label>Варианты для выбора:
+                    <select id="existing-ref-select">
+                        <option value="">- загрузка... -</option>
+                    </select>
+                </label>
+            </div>
+
             <label>Название поля в анкете:
                 <input type="text" id="existing-field-label" placeholder="Например, Город проживания">
             </label>
-            <label>Существующее поле:
-                <select id="existing-field-select">
-                    <option value="">— загрузка... —</option>
-                </select>
-            </label>
+
             <div id="existing-options-preview" style="margin: 12px 0;">
                 <p style="color: #888; font-style: italic;">Выберите поле, чтобы увидеть варианты</p>
             </div>
@@ -210,6 +111,12 @@
         const optionsContainer = document.getElementById('options-container');
         const container = document.getElementById('fields-container');
         const hiddenInput = document.getElementById('fields_json');
+
+        document.querySelectorAll('.cancel').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.closest('dialog').close();
+            });
+        });
 
         function addOptionRow(value = '') {
             const row = document.createElement('div');
@@ -249,9 +156,13 @@
             document.getElementById('new-field-type').value = 'text';
             document.getElementById('options-block').style.display = 'none';
             optionsContainer.innerHTML = '';
+            document.getElementById('dict-name-block').style.display = 'none';
+            document.getElementById('new-dict-name').value = '';
             // Очистка вкладки "Выбрать существующее"
-            document.getElementById('existing-field-select').value = '';
+            document.getElementById('existing-field-kind').value = '';
+            document.getElementById('existing-ref-block').style.display = 'none'
             document.getElementById('existing-field-label').value = '';
+            document.getElementById('existing-ref-select').value = '';
             document.getElementById('existing-options-preview').innerHTML = '<p style="color: #888; font-style: italic;">Выберите поле, чтобы увидеть варианты</p>';
 
         }
@@ -284,25 +195,31 @@
                 row.appendChild(labelInput);
 
                 // --- 2. Справочник (select) — только для custom_select ---
-                if (field.type === 'custom_select') {
+                if (field.type === 'custom_select' || field.type === 'reference_text') {
                     const refSelect = document.createElement('select');
                     refSelect.innerHTML = '<option value="">— загрузка... —</option>';
 
-                    fetch('/api/custom_fields')
+                    // Определяем, какой API использовать
+                    const isCustomSelect = field.type === 'custom_select';
+                    const url = isCustomSelect ? '/api/custom_fields' : '/api/reference_dicts';
+                    const labelKey = isCustomSelect ? 'label' : 'name';
+                    const idKey = isCustomSelect ? 'field_id' : 'dict_id';
+
+                    fetch(url)
                         .then(r => r.json())
-                        .then(refFields => {
-                            refSelect.innerHTML = '<option value="">— справочник —</option>';
-                            refFields.forEach(f => {
+                        .then(refItems => {
+                            refSelect.innerHTML = `<option value="">— ${isCustomSelect ? 'справочник' : 'словарь'} —</option>`;
+                            refItems.forEach(item => {
                                 const opt = document.createElement('option');
-                                opt.value = f.id;
-                                opt.textContent = f.label;
-                                if (f.id === field.field_id) opt.selected = true;
+                                opt.value = item.id;
+                                opt.textContent = item[labelKey];
+                                if (item.id === field[idKey]) opt.selected = true;
                                 refSelect.appendChild(opt);
                             });
                         });
 
                     refSelect.addEventListener('change', function() {
-                        field.field_id = parseInt(this.value);
+                        field[idKey] = parseInt(this.value);
                         hiddenInput.value = JSON.stringify(fields);
                     });
 
@@ -313,6 +230,7 @@
                 const typeSelect = document.createElement('select');
                 typeSelect.innerHTML = `
                     <option value="text">Текст</option>
+                    <option value="reference_text">Текст (с выбором)</option>
                     <option value="number">Число</option>
                     <option value="boolean">Да/Нет</option>
                     <option value="institution">Образовательное учреждение</option>
@@ -370,22 +288,63 @@
         });
 
         // --- Показ/скрытие блока вариантов ---
-         document.getElementById('new-field-type').addEventListener('change', function() {
+         document.getElementById('new-field-type').addEventListener('change',  function() {
             const optionsBlock = document.getElementById('options-block');
+            const dictNameBlock = document.getElementById('dict-name-block')
+
+            optionsBlock.style.display = 'none';
+            dictNameBlock.style.display = 'none';
+
             if (this.value === 'custom_select') {
                 optionsBlock.style.display = 'block';
                 // Если контейнер пуст — добавляем одну строку для удобства
                 if (optionsContainer.children.length === 0) {
                     addOptionRow();
                 }
-            } else {
-                optionsBlock.style.display = 'none';
-                optionsContainer.innerHTML = '';
+            } else if (this.value === 'reference_text') {
+                dictNameBlock.style.display = 'block';
             }
+        });
+        // --- Загрузка справочников для текства (с выбором вариантов)
+        async function loadExistingRefs(kind) {
+            const refBlock = document.getElementById('existing-ref-block');
+            const refSelect = document.getElementById('existing-ref-select');
+            const preview = document.getElementById('existing-options-preview');
+            if (!kind) {
+                refBlock.style.display = 'none';
+                preview.innerHTML = '<p style="color: #888; font-style: italic;">Выберите справочник, чтобы увидеть варианты</p>';
+                return;
+            }
+            refBlock.style.display = 'block';
+            refSelect.innerHTML = '<option value="">— загрузка... —</option>';
+            preview.innerHTML = '<p style="color: #888; font-style: italic;">Выберите справочник, чтобы увидеть варианты</p>';
+            try {
+                const url = kind === 'custom_select' ? '/api/custom_fields' : '/api/reference_dicts';
+                const labelKey = kind === 'custom_select' ? 'label' : 'name';
+
+                const response = await fetch(url);
+                const items = await response.json();
+
+                refSelect.innerHTML = '<option value="">— выберите справочник —</option>';
+                items.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = item[labelKey];
+                    refSelect.appendChild(opt);
+                });
+            } catch (err) {
+                refSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
+            }
+        }
+
+        document.getElementById('existing-field-kind').addEventListener('change', function () {
+            loadExistingRefs(this.value);
+            // Очищаем название и предпросмотр при смене типа
+            document.getElementById('existing-field-label').value = '';
         });
 
         // --- Загрузка существующих полей ---
-        async function loadCustomFields() {
+ /*       async function loadCustomFields() {
             const select = document.getElementById('existing-field-select');
             select.innerHTML = '<option value="">— загрузка... —</option>';
             try {
@@ -401,7 +360,7 @@
             } catch (err) {
                 select.innerHTML = '<option value="">Ошибка загрузки</option>';
             }
-        }
+        }*/
 
         // --- Открытие диалога ---
         document.getElementById('btn-add-field').addEventListener('click', function() {
@@ -419,8 +378,41 @@
                 alert('Введите название поля');
                 return;
             }
+            if (type === 'reference_text') {
+                const dictName = document.getElementById('new-dict-name').value.trim();
+                if (!dictName) {
+                    alert('Введите название словаря');
+                    return;
+                }
+                try {
+                    const response = await fetch('/api/reference_dicts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: dictName })
+                    });
+                    const data = await response.json();
 
-            if (type === 'custom_select') {
+                    if (!data.success) {
+                        alert(data.error || 'Ошибка создания словаря');
+                        return;
+                    }
+
+                    addFieldToTemplate({
+                        id: 'f' + (getCurrentFields().length + 1),
+                        label: label,
+                        type: 'reference_text',
+                        dict_id: data.id,
+                        required: true
+                    });
+
+                    clearDialog();
+                    document.getElementById('add-field-dialog').close();
+                } catch (err) {
+                    alert('Сетевая ошибка: ' + err.message);
+                }
+                return;
+
+            } else if (type === 'custom_select') {
                 // Собираем варианты из строк
                 const optionInputs = optionsContainer.querySelectorAll('.option-input');
                 const options = Array.from(optionInputs)
@@ -470,52 +462,49 @@
 
         // --- Добавить существующее ---
         document.getElementById('btn-add-existing').addEventListener('click', function() {
-            const fieldId = parseInt(document.getElementById('existing-field-select').value);
+            const kind = document.getElementById('existing-field-kind').value;
+            const refId = parseInt(document.getElementById('existing-ref-select').value);
             const label = document.getElementById('existing-field-label').value.trim();
 
-            if (!fieldId) {
-                alert('Выберите поле');
+            if (!kind) {
+                alert('Выберите тип поля');
                 return;
             }
-
+            if (!refId) {
+                alert('Выберите справочник');
+                return;
+            }
             if (!label) {
                 alert('Введите название поля в анкете');
                 return;
             }
 
-            addFieldToTemplate({
+            const field = {
                 id: 'f' + (getCurrentFields().length + 1),
-                label: label,           // локальное название
-                field_id: fieldId,      // ссылка на справочник
-                type: 'custom_select',
+                label: label,
+                type: kind,
                 required: true
-            });
+            };
 
-            // Очистка диалога
-            document.getElementById('existing-field-select').value = '';
+            if (kind === 'custom_select') {
+                field.field_id = refId;
+            } else { // reference_text
+                field.dict_id = refId;
+            }
+
+            addFieldToTemplate(field);
+
+            // Очистка
+            document.getElementById('existing-field-kind').value = '';
+            document.getElementById('existing-ref-select').value = '';
             document.getElementById('existing-field-label').value = '';
+            document.getElementById('existing-ref-block').style.display = 'none';
+            document.getElementById('existing-ref-select').style.display = 'none';
+            document.getElementById('existing-options-preview').innerHTML =
+                '<p style="color: #888; font-style: italic;">Выберите справочник, чтобы увидеть варианты</p>';
             document.getElementById('add-field-dialog').close();
         });
-
-        // --- Отмена ---
-        document.querySelectorAll('.cancel').forEach(btn => {
-            btn.addEventListener('click', function() {
-                this.closest('dialog').close();
-            });
-        });
-
-        document.getElementById('existing-field-select').addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const labelInput = document.getElementById('existing-field-label');
-
-            if (this.value) {
-                // Подставляем название справочника как значение по умолчанию
-                labelInput.value = selectedOption.textContent;
-            } else {
-                labelInput.value = '';
-            }
-        });
-
+/*
         document.getElementById('existing-field-select').addEventListener('change', async function() {
             const fieldId = parseInt(this.value);
             const preview = document.getElementById('existing-options-preview');
@@ -548,6 +537,60 @@
                 html += `<tr><td>${i + 1}</td><td>${opt.label}</td></tr>`;
                 });
                 html += '</tbody></table>';
+                preview.innerHTML = html;
+            } catch (err) {
+                preview.innerHTML = '<p style="color: red;">Ошибка загрузки вариантов</p>';
+            }
+        });
+*/
+        document.getElementById('existing-ref-select').addEventListener('change', async function() {
+            const kind = document.getElementById('existing-field-kind').value;
+            const refId = parseInt(this.value);
+            const preview = document.getElementById('existing-options-preview');
+            const labelInput = document.getElementById('existing-field-label');
+
+            if (!refId) {
+                preview.innerHTML = '<p style="color: #888; font-style: italic;">Выберите справочник, чтобы увидеть варианты</p>';
+                return;
+            }
+
+            // Подставляем название справочника как значение по умолчанию
+            const selectedOption = this.options[this.selectedIndex];
+            labelInput.value = selectedOption.textContent;
+
+            // Загружаем варианты
+            const url = kind === 'custom_select'
+                ? `/api/custom_fields/${refId}/options`
+                : `/api/reference_items?dict_id=${refId}`;
+
+            preview.innerHTML = '<p>Загрузка вариантов...</p>';
+            try {
+                const response = await fetch(url);
+                const options = await response.json();
+
+                if (options.length === 0) {
+                    preview.innerHTML = '<p style="color: #888; font-style: italic;">У этого справочника нет вариантов</p>';
+                    return;
+                }
+
+                // ОГРАНИЧЕНИЕ: показываем первые 10
+                const LIMIT = 10;
+                const shown = options.slice(0, LIMIT);  // берём первые 10.
+                const remaining = options.length - shown.length;
+
+                let html = '<table border="1" cellpadding="4" style="border-collapse: collapse; width: 100%;">';
+                html += '<thead><tr><th>#</th><th>Вариант</th></tr></thead><tbody>';
+                shown.forEach((opt, i) => {
+                    html += `<tr><td>${i + 1}</td><td>${opt.label}</td></tr>`;
+                });
+                html += '</tbody></table>';
+
+                if (remaining > 0) {
+                    html += `<p style="color: #888; font-style: italic; margin-top: 8px;">
+                                …и ещё ${remaining} вариант(ов)
+                             </p>`;
+                }
+
                 preview.innerHTML = html;
             } catch (err) {
                 preview.innerHTML = '<p style="color: red;">Ошибка загрузки вариантов</p>';
