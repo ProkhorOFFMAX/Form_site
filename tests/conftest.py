@@ -23,6 +23,8 @@ load_dotenv()
 #    finally:
 #        conn.close()
 
+
+
 @pytest.fixture(scope="session")
 def test_db_url():
     """Создание временной БД на время тестовой сессии"""
@@ -66,11 +68,14 @@ def test_db_url():
 def app(test_db_url, monkeypatch):
     """Создаёт Flask-приложение с тестовой БД."""
     monkeypatch.setenv("DATABASE_URL", test_db_url)
+    monkeypatch.setenv("FLASK_SECRET_KEY", "test-secret-key")
 
     from app import app as flask_app
+
     flask_app.config.update({
         "TESTING": True,
         "WTF_CSRF_ENABLED": False,
+        "SECRET_KEY": "test-secret-key",
     })
 
     yield flask_app
@@ -122,3 +127,24 @@ def seeded_institutions(test_db_url):
 
     yield
     # Очистка не нужна: clean_tables с autouse=True сделает это перед следующим тестом
+
+@pytest.fixture
+def admin_user(test_db_url):
+    from werkzeug.security import generate_password_hash
+    conn = psycopg2.connect(test_db_url)
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO users (email, password_hash, role) VALUES (%s, %s, 'admin') RETURNING id",
+            ("admin@test.com", generate_password_hash("admin123"))
+        )
+    conn.commit()
+    conn.close()
+
+
+@pytest.fixture
+def logged_in_admin(client, admin_user):
+    client.post("/login", data={
+        "email": "admin@test.com",
+        "password": "admin123"
+    })
+    return client

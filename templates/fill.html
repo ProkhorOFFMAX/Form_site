@@ -3,57 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ template.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
-    <h1>{{ template.name }}</h1>
+    <div class="user-info">
+        Вы вошли как: <strong>{{ current_user.email }}</strong>
+        | <a href="{{ url_for('logout') }}">Выйти</a>
+    </div>
+    <div class="page">
+        <h1>{{ template.name }}</h1>
 
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
-    {% endif %}
+        <div id="error-message" style="color: red; display: none;"></div>
 
-    <form method="POST">
-        {% for field in fields %}
-            <p>
-                <label>{{ field.label }}:<br>
-                    {% if field.type == "number" %}
-                        <input type="number" step="any" name="{{ field.id }}" required>
-                    {% elif field.type == "text" %}
-                        <input type="text" name="{{ field.id }}" required>
-                    {% elif field.type == "boolean" %}
-                        <select name="{{ field.id }}" required>
-                            <option value="" disabled selected>— выберите —</option>
-                            <option value="true">Да</option>
-                            <option value="false">Нет</option>
-                        </select>
-                    {% elif field.type == "institution" %}
-                        <select class="inst-type" name="{{ field.id }}_type" required>
-                            <option value="" disabled selected>— выберите тип —</option>
-                            <option value="ГБОУ">ГБОУ</option>
-                            <option value="ГБДОУ">ГБДОУ</option>
-                            <option value="ОДОД">ОДОД</option>
-                        </select>
-                        <select class="inst-name" name="{{ field.id }}" required>
-                            <option value="">- сначала выберите тип ОУ -</option>
-                        </select>
-                    {% elif field.type == "custom_select" %}
-                        <select name="{{ field.id}}"
-                                class="custom-select"
-                                data-field-id="{{ field.field_id }}"
-                                {% if field.required %}required{% endif %}>
-                            <option value="">— загрузка... —</option>
-                        </select>
-                    {% endif %}
-                </label>
-            </p>
-        {% endfor %}
+        <div id="form-container">
+            {% for field in fields %}
+                <p>
+                    <label>{{ field.label }}:<br>
+                        {% if field.type == "text" %}
+                            <input type="text" name="{{ field.id }}" {% if field.required %}required{% endif %}>
+                        {% elif field.type == "number" %}
+                            <input type="number" step="any" name="{{ field.id }}" {% if field.required %}required{% endif %}>
+                        {% elif field.type == "boolean" %}
+                            <select name="{{ field.id }}" {% if field.required %}required{% endif %}>
+                                <option value="">— выберите —</option>
+                                <option value="true">Да</option>
+                                <option value="false">Нет</option>
+                            </select>
+                        {% elif field.type == "institution" %}
+                            <select class="inst-type" name="{{ field.id }}_type" required>
+                                <option value="">— выберите тип —</option>
+                                <option value="ГБОУ">ГБОУ</option>
+                                <option value="ГБДОУ">ГБДОУ</option>
+                                <option value="ОДОД">ОДОД</option>
+                            </select>
+                            <select class="inst-name" name="{{ field.id }}" required>
+                                <option value="">- сначала выберите тип ОУ -</option>
+                            </select>
+                        {% elif field.type == "custom_select" %}
+                            <select name="{{ field.id }}" class="custom-select"
+                                    data-field-id="{{ field.field_id }}"
+                                    {% if field.required %}required{% endif %}>
+                                <option value="">— загрузка... —</option>
+                            </select>
+                        {% elif field.type == "reference_text" %}
+                            <input type="text" name="{{ field.id }}_original"
+                                   list="datalist-{{ field.id }}"
+                                   data-dict-id="{{ field.dict_id }}"
+                                   {% if field.required %}required{% endif %}>
+                            <datalist id="datalist-{{ field.id }}"></datalist>
+                        {% endif %}
+                    </label>
+                </p>
+            {% endfor %}
+        </div>
 
         <p>
-            <button type="submit">Сохранить ответ</button>
+            <button type="button" id="btn-save" data-template-id="{{ template.id }}">Сохранить ответ</button>
             <a href="{{ url_for('index') }}">Отмена</a>
         </p>
-    </form>
+    </div>
+    <script src="{{ url_for('static', filename='js/fill.js') }}"></script>
 </body>
 </html>
-
-
-<script src="{{ url_for('static', filename='js/fill.js') }}"></script>

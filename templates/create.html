@@ -6,34 +6,41 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
-    <h1>Создать шаблон заявки</h1>
+    <div class="user-info">
+        Вы вошли как: <strong>{{ current_user.email }}</strong>
+        | <a href="{{ url_for('logout') }}">Выйти</a>
+    </div>
+    <div class="page">
+        <h1>Создать шаблон заявки</h1>
 
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
-    {% endif %}
+        {% if error %}
+            <p style="color: red;">{{ error }}</p>
+        {% endif %}
 
-    <form method="POST" id="template-form">
-        <p>
-            <label>Название анкеты:<br>
-                <input type="text" name="name" required style="width: 300px; padding: 4px;">
-            </label>
-        </p>
+        <form method="POST" id="template-form">
+            <p>
+                <label>Название анкеты:<br>
+                    <input type="text" name="name" required style="width: 300px; padding: 4px;">
+                </label>
+            </p>
 
-        <h3>Поля анкеты</h3>
-        <div id="fields-container"></div>
+            <h3>Поля анкеты</h3>
+            <div id="fields-container"></div>
 
-        <p>
-            <button type="button" class="add-btn" id="btn-add-field">+ Добавить поле</button>
-        </p>
+            <p>
+                <button type="button" class="add-btn" id="btn-add-field">+ Добавить поле</button>
+            </p>
 
-        <!-- Скрытое поле: сюда JavaScript положит JSON -->
-        <input type="hidden" name="fields_json" id="fields_json">
+            <!-- Скрытое поле: сюда JavaScript положит JSON -->
+            <input type="hidden" name="fields_json" id="fields_json">
 
-        <p>
-            <button type="submit">Сохранить</button>
-            <a href="{{ url_for('index') }}">Отмена</a>
-        </p>
-    </form>
+            <p>
+                <button type="submit">Сохранить</button>
+                <a href="{{ url_for('index') }}">Отмена</a>
+            </p>
+
+        </form>
+    </div>
     <dialog id="add-field-dialog">
         <h2>Добавить поле</h2>
 
@@ -310,6 +317,7 @@
             const refBlock = document.getElementById('existing-ref-block');
             const refSelect = document.getElementById('existing-ref-select');
             const preview = document.getElementById('existing-options-preview');
+
             if (!kind) {
                 refBlock.style.display = 'none';
                 preview.innerHTML = '<p style="color: #888; font-style: italic;">Выберите справочник, чтобы увидеть варианты</p>';
@@ -499,7 +507,7 @@
             document.getElementById('existing-ref-select').value = '';
             document.getElementById('existing-field-label').value = '';
             document.getElementById('existing-ref-block').style.display = 'none';
-            document.getElementById('existing-ref-select').style.display = 'none';
+            //document.getElementById('existing-ref-select').style.display = 'none';
             document.getElementById('existing-options-preview').innerHTML =
                 '<p style="color: #888; font-style: italic;">Выберите справочник, чтобы увидеть варианты</p>';
             document.getElementById('add-field-dialog').close();

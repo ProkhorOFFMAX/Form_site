@@ -114,3 +114,124 @@ dialog {
 dialog::backdrop {
     background: rgba(0, 0, 0, 0.4);
 }
+
+/* === Стили для fill.html === */
+
+/* Контейнер формы */
+#form-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Каждое поле — как карточка */
+#form-container p {
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fafafa;
+}
+
+/* Подпись поля */
+#form-container label {
+    display: block;
+    font-weight: 500;
+}
+
+/* Поля ввода */
+#form-container input[type="text"],
+#form-container input[type="number"],
+#form-container select {
+    width: 100%;
+    padding: 8px;
+    margin-top: 6px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#form-container input[type="text"]:focus,
+#form-container input[type="number"]:focus,
+#form-container select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+}
+
+/* Кнопка сохранения */
+#btn-save {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+#btn-save:hover {
+    background: #2980b9;
+}
+
+/* Сообщение об ошибке */
+#error-message {
+    max-width: 600px;
+    margin: 0 auto 16px;
+    padding: 10px;
+    border: 1px solid #e74c3c;
+    border-radius: 4px;
+    background: #fdecea;
+    color: #c0392b;
+}
+
+/* Кнопки "Отмена" и ссылки */
+#form-container + p a {
+    margin-left: 12px;
+    color: #3498db;
+    text-decoration: none;
+}
+
+#form-container + p a:hover {
+    text-decoration: underline;
+}
+
+.page {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.page h1 {
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 8px;
+    margin-bottom: 24px;
+}
+
+/* USER */
+.user-info {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #f4f4f4;
+    border-bottom: 1px solid #ddd;
+    font-size: 14px;
+    color: #555;
+}
+
+.user-info strong {
+    color: #2c3e50;
+}
+
+.user-info a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.user-info a:hover {
+    text-decoration: underline;
+}

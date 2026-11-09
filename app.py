@@ -1,20 +1,172 @@
 from dataclasses import fields
 from getopt import error
 from os.path import exists
-
+import os
 from dotenv import load_dotenv
 from sqlalchemy.engine import row
 
 load_dotenv()
-
+from models import User
 from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash
 from db import query_db, get_connection
 from validators import validate_fields
 import json
 from flasgger import Swagger
 
 app = Flask(__name__)
+app.secret_key = os.environ["FLASK_SECRET_KEY"] # обязательно для сессий
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"  # куда редиректить неавторизованных
+
+@login_manager.user_loader
+def load_user(user_id):
+    rows = query_db("SELECT id, email, password_hash, role FROM users WHERE id = %s", (user_id,))
+    if not rows:
+        return None
+    return User(rows[0]["id"], rows[0]["email"], rows[0]["password_hash"], rows[0]["role"])
+
 swagger = Swagger(app)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+
+        rows = query_db("SELECT id, email, password_hash, role FROM users WHERE email = %s", (email,))
+        if not rows:
+            return render_template("login.html", error="Неверный email или пароль")
+
+        user = User(rows[0]["id"], rows[0]["email"], rows[0]["password_hash"], rows[0]["role"])
+        if not user.check_password(password):
+            return render_template("login.html", error="Неверный email или пароль")
+
+        login_user(user)
+        # Редирект в зависимости от роли
+        if user.is_admin():
+            return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("index"))
+
+    return render_template("login.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
+
+import click
+
+@app.cli.command("create-admin")
+@click.argument("email")
+@click.argument("password")
+def create_admin(email, password):
+    """Создать администратора."""
+    password_hash = generate_password_hash(password)
+    query_db(
+        "INSERT INTO users (email, password_hash, role) VALUES (%s, %s, 'admin')",
+        (email, password_hash),
+        fetch=False
+    )
+    print(f"Админ {email} создан")
+
+@app.route("/admin")
+@login_required
+def admin_dashboard():
+    if not current_user.is_admin():
+        return "Доступ запрещён", 403
+    return f"<h1>Админ-панель</h1><p>Вы вошли как {current_user.email}</p><a href='/logout'>Выйти</a>"
+
+
+@app.route("/admin/users/create", methods=["GET", "POST"])
+@login_required
+def admin_create_user():
+    if not current_user.is_admin():
+        return "Доступ запрещён", 403
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "user").strip()
+
+        # Валидация
+        if not email or not password:
+            return render_template("admin_create_user.html", error="Email и пароль обязательны")
+
+        if role not in ("user", "admin"):
+            return render_template("admin_create_user.html", error="Неверная роль")
+
+        if len(password) < 6:
+            return render_template("admin_create_user.html", error="Пароль должен быть не короче 6 символов")
+
+        # Проверка на дубликат (email UNIQUE)
+        exists = query_db("SELECT id FROM users WHERE email = %s", (email,))
+        if exists:
+            return render_template("admin_create_user.html", error="Пользователь с таким email уже существует")
+
+        # Создание
+        password_hash = generate_password_hash(password)
+        query_db(
+            "INSERT INTO users (email, password_hash, role) VALUES (%s, %s, %s) RETURNING id",
+            (email, password_hash, role),
+            fetch=False
+        )
+
+        return redirect(url_for("admin_users"))
+
+    return render_template("admin_create_user.html")
+
+
+@app.route("/admin/users")
+@login_required
+def admin_users():
+    if not current_user.is_admin():
+        return "Доступ запрещён", 403
+
+    users = query_db("SELECT id, email, role, created_at FROM users ORDER BY created_at DESC")
+    return render_template("admin_users.html", users=users)
+
+
+@login_required
+def admin_create_user():
+    if not current_user.is_admin():
+        return "Доступ запрещён", 403
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "user").strip()
+
+        # Валидация
+        if not email or not password:
+            return render_template("admin_create_user.html", error="Email и пароль обязательны")
+
+        if role not in ("user", "admin"):
+            return render_template("admin_create_user.html", error="Неверная роль")
+
+        if len(password) < 6:
+            return render_template("admin_create_user.html", error="Пароль должен быть не короче 6 символов")
+
+        # Проверка на дубликат (email UNIQUE)
+        exists = query_db("SELECT id FROM users WHERE email = %s", (email,))
+        if exists:
+            return render_template("admin_create_user.html", error="Пользователь с таким email уже существует")
+
+        # Создание
+        password_hash = generate_password_hash(password)
+        query_db(
+            "INSERT INTO users (email, password_hash, role) VALUES (%s, %s, %s) RETURNING id",
+            (email, password_hash, role),
+            fetch=False
+        )
+
+        return redirect(url_for("admin_users"))
+
+    return render_template("admin_create_user.html")
 
 @app.route('/')
 def index():
@@ -46,7 +198,8 @@ def create():
         return redirect(url_for("index"))
     return render_template("create.html")
 
-@app.route('/fill/<int:template_id>', methods=['GET', 'POST'])
+@app.route('/fill/<int:template_id>')
+@login_required  # только авторизованные
 def fill(template_id):
     templates = query_db("SELECT id, name, fields FROM templates WHERE id = %s", (template_id,))
     if not templates:
@@ -54,67 +207,63 @@ def fill(template_id):
 
     template = templates[0]
     fields = template["fields"]
-
-    if request.method == 'POST':
-        data = {}
-        for field in fields:
-            value = request.form.get(field["id"], "").strip()
-
-            if field["type"] == "boolean":
-                raw = request.form.get(field["id"], "")
-                if raw == "":
-                    return render_template("fill.html", template=template, fields=fields,
-                                               error=f"Поле «{field['label']}» обязательно")
-                value = (raw == "true")
-            elif field["type"] == "number":
-                if value == "":
-                    return render_template("fill.html", template=template,
-                                           fields=fields, error=f"Поле «{field['label']}» должно быть числом")
-                else:
-                    if value == "":
-                        return render_template("fill.html", template=template, fields=fields,
-                                               error=f"Поле «{field['label']}» обязательно")
-            elif field["type"] == "institution":
-                raw = request.form.get(field["id"], "")
-                if raw == "":
-                    return render_template("fill.html", template=template, fields=fields,
-                                           error=f"Поле «{field['label']}» обязательно")
-                # Проверяем, что ID существует
-                exists = query_db(
-                    "SELECT id FROM educational_institutions WHERE id = %s",
-                    (int(raw),)
-                )
-                if not exists:
-                    return render_template("fill.html", template=template, fields=fields, error=f"Выбранное ОУ не найдено")
-                value = int(raw)
-            elif field["type"] == "custom_select":
-                value = request.form.get(field["id"], "").strip()
-                if field.get("required", True) and value == "":
-                    return render_template("fill.html", template=template, fields=fields,
-                                           error=f"Поле «{field['label']}» обязательно")
-                # Если значение выбрано, проверяем, что оно существует и принадлежит этому справочнику
-                if value != "":
-                    exists = query_db(
-                        "SELECT id FROM field_options WHERE id = %s AND field_id = %s",
-                        (int(value), field["field_id"])
-                    )
-                    if not exists:
-                        return render_template("fill.html", template=template, fields=fields,
-                                               error=f"Недопустимое значение для поля «{field['label']}»")
-                    data[field["id"]] = int(value)
-            else:
-                data[field["id"]] = value
-
-            # Сохраняем
-        query_db(
-        "INSERT INTO responses (template_id, data) VALUES (%s, %s)",
-        (template_id, json.dumps(data)),
-        fetch=False
-        )
-
-        return redirect(url_for("responses", template_id=template_id))
-
     return render_template("fill.html", template=template, fields=fields)
+
+@app.route('/api/responses', methods=['POST'])
+@login_required
+def api_responses():
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "error": "Нет данных"}), 400
+    template_id = data.get("template_id")
+    answers = data.get("answers", {})
+    if not template_id:
+        return jsonify({"success": False, "error": "template_id обязателен"}), 400
+    templates = query_db("SELECT fields FROM templates WHERE id = %s", (template_id,))
+    if not templates:
+        return jsonify({"success": False, "error": "Шаблон не найден"}), 404
+
+    fields = templates[0]["fields"]
+    # Валидация ответов (упрощённо — проверяем, что все обязательные поля заполнены)
+    for field in fields:
+        if field.get("required") and not answers.get(field["id"]):
+            return jsonify({"success": False, "error": f"Поле «{field['label']}» обязательно"}), 400
+
+    for field in fields:
+        if field.get("type") == "reference_text":
+            answer = answers.get(field["id"])
+            if isinstance(answer, dict) and answer.get("original"):
+                match = query_db(
+                    "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s",
+                    (field["dict_id"], answer["original"])
+                )
+                answer["linked_id"] = match[0]["id"] if match else None
+                answers[field["id"]] = answer
+
+    # Сохраняем с привязкой к пользователю
+    rows = query_db(
+        "INSERT INTO responses (template_id, data, user_id) VALUES (%s, %s, %s) RETURNING id",
+        (template_id, json.dumps(answers), current_user.id), #current_user.id — Flask-Login
+        fetch=False
+    )
+
+    return jsonify({"success": True, "id": rows[0]["id"]}), 201
+
+@app.route("/admin/responses")
+@login_required
+def admin_responses():
+    if not current_user.is_admin():
+        return "Доступ запрещён", 403
+
+    rows = query_db("""
+        SELECT r.id, r.data, r.submitted_at, u.email, t.name AS template_name
+        FROM responses r
+        JOIN users u ON u.id = r.user_id
+        JOIN templates t ON t.id = r.template_id
+        ORDER BY r.submitted_at DESC
+    """)
+    return render_template("admin_responses.html", responses=rows)
+
 
 @app.route("/responses/<int:template_id>")
 def responses(template_id):
