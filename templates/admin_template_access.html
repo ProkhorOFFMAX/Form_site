@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Доступ к «{{ template.name }}»</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+</head>
+<body>
+    <div class="page">
+        <h1>Доступ к шаблону «{{ template.name }}»</h1>
+
+        <form method="POST">
+            {% if users %}
+                {% for u in users %}
+                    <label style="display: block; margin-bottom: 8px;">
+                        <input type="checkbox" name="user_ids" value="{{ u.id }}"
+                               {% if u.id in allowed_ids %}checked{% endif %}>
+                        {{ u.email }}
+                    </label>
+                {% endfor %}
+                <button type="submit" class="add-btn">Сохранить</button>
+            {% else %}
+                <p>Нет пользователей. <a href="{{ url_for('admin_create_user') }}">Создать</a></p>
+            {% endif %}
+        </form>
+
+        <p><a href="{{ url_for('index') }}">Назад</a></p>
+    </div>
+</body>
+</html>

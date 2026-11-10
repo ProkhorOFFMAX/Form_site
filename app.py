@@ -79,7 +79,7 @@ def create_admin(email, password):
 def admin_dashboard():
     if not current_user.is_admin():
         return "Доступ запрещён", 403
-    return f"<h1>Админ-панель</h1><p>Вы вошли как {current_user.email}</p><a href='/logout'>Выйти</a>"
+    return f"<h1>Админ-панель</h1><p>Вы вошли как {current_user.email}</p><a href='/'>На главную</a><br><a href='/logout'>Выйти</a>"
 
 
 @app.route("/admin/users/create", methods=["GET", "POST"])
@@ -188,8 +188,54 @@ def index():
         """, (current_user.id,))
         return render_template("index_user.html", templates=templates)
 
-@app.route('/create', methods=['GET', 'POST'])
-def create():
+
+@app.route("/admin/templates/<int:template_id>/access", methods=["GET", "POST"])
+@login_required
+def admin_template_access(template_id):
+    if not current_user.is_admin():
+        return "Доступ запрещён", 403
+
+    # Проверяем, что шаблон существует
+    template = query_db("SELECT id, name FROM templates WHERE id = %s", (template_id,))
+    if not template:
+        return "Шаблон не найден", 404
+
+    if request.method == "POST":
+        # Получаем список выбранных user_id
+        user_ids = request.form.getlist("user_ids")
+
+        # Удаляем старые разрешения
+        query_db("DELETE FROM template_access WHERE template_id = %s", (template_id,), fetch=False)
+
+        # Добавляем новые
+        for uid in user_ids:
+            query_db(
+                "INSERT INTO template_access (template_id, user_id) VALUES (%s, %s)",
+                (template_id, int(uid)),
+                fetch=False
+            )
+
+        return redirect(url_for("admin_template_access", template_id=template_id))
+
+    # GET: показываем всех пользователей и отмечаем, у кого есть доступ
+    users = query_db("SELECT id, email FROM users WHERE role = 'user' ORDER BY email")
+    access_rows = query_db(
+        "SELECT user_id FROM template_access WHERE template_id = %s",
+        (template_id,)
+    )
+    allowed_ids = {r["user_id"] for r in access_rows}
+
+    return render_template(
+        "admin_template_access.html",
+        template=template[0],
+        users=users,
+        allowed_ids=allowed_ids
+    )
+
+
+
+@app.route('/create_template', methods=['GET', 'POST'])
+def create_template():
     if request.method == 'POST':
         name = request.form.get('name', "").strip()
         fields_json = request.form.get('fields_json', "").strip()
@@ -281,6 +327,7 @@ def admin_responses():
 
 
 @app.route("/responses/<int:template_id>")
+@login_required
 def responses(template_id):
     templates = query_db("SELECT id, name, fields FROM templates WHERE id = %s", (template_id,))
     if not templates:
@@ -289,15 +336,29 @@ def responses(template_id):
     template = templates[0]
     fields = template["fields"]
 
-    rows = query_db(
-        "SELECT id, data, submitted_at FROM responses WHERE template_id = %s ORDER BY submitted_at DESC",
-        (template_id,)
-    )
+    if current_user.is_admin():
+        # Админ видит ВСЕ ответы с email пользователей
+        rows = query_db("""
+            SELECT r.id, r.data, r.submitted_at, u.email
+            FROM responses r
+            LEFT JOIN users u ON u.id = r.user_id
+            WHERE r.template_id = %s
+            ORDER BY r.submitted_at DESC
+        """, (template_id,))
+    else:
+        # Пользователь видит ТОЛЬКО свои ответы
+        rows = query_db("""
+            SELECT r.id, r.data, r.submitted_at
+            FROM responses r
+            WHERE r.template_id = %s AND r.user_id = %s
+            ORDER BY r.submitted_at DESC
+        """, (template_id, current_user.id))
 
+    # --- Сбор названий ОУ (как раньше) ---
     all_inst_ids = set()
     for row in rows:
         for field in fields:
-            if field["type"] == "institution":
+            if field.get("type") == "institution":
                 inst_id = row["data"].get(field["id"])
                 if inst_id:
                     all_inst_ids.add(inst_id)
@@ -311,8 +372,7 @@ def responses(template_id):
         )
         inst_names = {r["id"]: r["short_name"] for r in inst_rows}
 
-
-    # Собираем все ID вариантов из ответов
+    # --- Сбор названий вариантов custom_select ---
     all_option_ids = set()
     for row in rows:
         for field in fields:
@@ -330,8 +390,15 @@ def responses(template_id):
         )
         option_labels = {r["id"]: r["label"] for r in opt_rows}
 
-    return render_template("responses.html", template=template, fields=fields, responses=rows,
-                           inst_names=inst_names, option_labels=option_labels )
+    return render_template(
+        "responses.html",
+        template=template,
+        fields=fields,
+        responses=rows,
+        inst_names=inst_names,
+        option_labels=option_labels,
+        is_admin=current_user.is_admin()  # <-- передаём флаг в шаблон
+    )
 
 @app.route("/api/institutions/<string:inst_type>")
 def get_institutions(inst_type):
