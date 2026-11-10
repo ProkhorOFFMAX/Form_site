@@ -197,7 +197,7 @@ dialog::backdrop {
 }
 
 .page {
-    max-width: 700px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: 20px;
     font-family: system-ui, -apple-system, sans-serif;

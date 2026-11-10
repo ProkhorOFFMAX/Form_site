@@ -168,10 +168,25 @@ def admin_create_user():
 
     return render_template("admin_create_user.html")
 
-@app.route('/')
+@app.route("/")
+@login_required
 def index():
-    templates = query_db("SELECT id, name, created_at FROM templates ORDER BY id")
-    return render_template("index.html", templates=templates)
+    if current_user.is_admin():
+        # Админ видит все шаблоны + кнопку создания
+        templates = query_db(
+            "SELECT id, name, created_at FROM templates ORDER BY created_at DESC"
+        )
+        return render_template("index_admin.html", templates=templates)
+    else:
+        # Пользователь видит только разрешённые
+        templates = query_db("""
+            SELECT t.id, t.name, t.created_at
+            FROM templates t
+            JOIN template_access a ON a.template_id = t.id
+            WHERE a.user_id = %s
+            ORDER BY t.created_at DESC
+        """, (current_user.id,))
+        return render_template("index_user.html", templates=templates)
 
 @app.route('/create', methods=['GET', 'POST'])
 def create():

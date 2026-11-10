@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Доступные анкеты</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+</head>
+<body>
+    <div class="page">
+        <div class="user-info">
+            Вы вошли как: <strong>{{ current_user.email }}</strong>
+            | <a href="{{ url_for('logout') }}">Выйти</a>
+        </div>
+
+        <h1>Доступные анкеты</h1>
+
+        {% if templates %}
+            <ul>
+                {% for t in templates %}
+                    <li>
+                        <a href="{{ url_for('fill', template_id=t.id) }}">{{ t.name }}</a>
+                        <small>(создан: {{ t.created_at }})</small>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Вам пока не назначено ни одной анкеты. Обратитесь к администратору.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
