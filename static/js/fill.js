@@ -99,6 +99,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 if (input.value === 'true' || input.value === 'false') {
                     answers[name] = input.value === 'true';
+                } else if (input.classList.contains('inst-name')) {
+                    answers[name] = parseInt(input.value);  // <-- institution → int
+                } else if (input.classList.contains('custom-select')) {
+                    answers[name] = parseInt(input.value);  // <-- custom_select → int
                 } else {
                     answers[name] = input.value;
                 }

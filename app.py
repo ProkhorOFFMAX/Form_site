@@ -300,6 +300,9 @@ def api_responses():
                 )
                 answer["linked_id"] = match[0]["id"] if match else None
                 answers[field["id"]] = answer
+        #elif field["type"] == "institution":
+        #    answer = answers.get(field["id"])
+        #    answers[field["id"]] = int(answer)
 
     # Сохраняем с привязкой к пользователю
     rows = query_db(
