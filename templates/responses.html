@@ -45,36 +45,49 @@
                             <td>{{ row.id }}</td>
                             {% for field in fields %}
                                 <td class="{{ cell_class(row.data.get(field.id)) }}">
-                                {% if field.type == "boolean" %}
-                                    {% if row.data.get(field.id) is not none %}
-                                        {{ "Да" if row.data.get(field.id) else "Нет" }}
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                {% elif field.type == "institution" %}
-                                    {% set inst_id = row.data.get(field.id) %}
-                                    {% if inst_id %}
-                                        {{ inst_names.get(inst_id|int, "—") }}
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                {% elif field.type == "custom_select" %}
-                                    {% set opt_id = row.data.get(field.id) %}
-                                    {% if opt_id %}
-                                        {{ option_labels.get(opt_id|int, "—") }}
-                                    {% else %}
-                                        —
-                                    {% endif %}
-                                {% elif field.type == "reference_text" %}
-                                    {% set val = row.data.get(field.id, {}) %}
-                                    {% if val is mapping %}
-                                        {{ val.get("original") or "—" }}
-                                    {% else %}
-                                        {{ val or "—" }}
-                                    {% endif %}
-                                {% else %}
-                                    {{ row.data.get(field.id) or "—" }}
-                                {% endif %}
+                                    <div class="cell-content">
+                                        <span class="cell-value">
+                                            {% if field.type == "boolean" %}
+                                                {% if row.data.get(field.id) is not none %}
+                                                    {{ "Да" if row.data.get(field.id) else "Нет" }}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            {% elif field.type == "institution" %}
+                                                {% set inst_id = row.data.get(field.id) %}
+                                                {% if inst_id %}
+                                                    {{ inst_names.get(inst_id|int, "—") }}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            {% elif field.type == "custom_select" %}
+                                                {% set opt_id = row.data.get(field.id) %}
+                                                {% if opt_id %}
+                                                    {{ option_labels.get(opt_id|int, "—") }}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            {% elif field.type == "reference_text" %}
+                                                {% set val = row.data.get(field.id, {}) %}
+                                                {% if val is mapping %}
+                                                    {{ val.get("original") or "—" }}
+                                                {% else %}
+                                                    {{ val or "—" }}
+                                                {% endif %}
+                                            {% else %}
+                                                {{ row.data.get(field.id) or "—" }}
+                                            {% endif %}
+                                        </span>
+
+                                        {% if is_admin or row.user_id == current_user.id %}
+                                            <button type="button" class="edit-field-btn"
+                                                    data-response-id="{{ row.id }}"
+                                                    data-field='{{ field | tojson }}'
+                                                    data-value='{{ row.data.get(field.id) | tojson }}'
+                                                    title="Редактировать поле">✎
+                                            </button>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             {% endfor %}
                             <td>{{ row.submitted_at }}</td>
@@ -94,6 +107,24 @@
         <a href="{{ url_for('fill', template_id=template.id) }}">Заполнить ещё одну</a> |
         <a href="{{ url_for('index') }}">На главную</a>
     </p>
+    <dialog id="edit-field-dialog">
+        <h2 id="edit-field-title">Редактировать поле</h2>
+        <form id="edit-field-form" method="dialog">
+            <input type="hidden" id="edit-response-id">
+            <input type="hidden" id="edit-field-id">
 
+            <div id="edit-field-input-container" style="margin: 12px 0;"></div>
+
+            <label>Причина изменения (опционально):
+                <input type="text" id="edit-reason" placeholder="Например, исправлена опечатка">
+            </label>
+
+            <div class="dialog-actions">
+                <button type="button" id="btn-save-field">Сохранить</button>
+                <button type="button" class="cancel">Отмена</button>
+            </div>
+        </form>
+    </dialog>
+    <script src="{{ url_for('static', filename='js/responses.js') }}"></script>
 </body>
 </html>

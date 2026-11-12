@@ -326,6 +326,91 @@ def api_responses():
 
     return jsonify({"success": True, "id": rows[0]["id"]}), 201
 
+@app.route('/api/responses/<int:response_id>', methods=['PATCH'])
+@login_required
+def api_update_response_field(response_id):
+    # Загрузка заявки
+    rows = query_db("SELECT id, template_id, data, user_id FROM responses WHERE id = %s", (response_id,))
+    if not rows:
+        return jsonify({"success": False, "error": "Заявка не найдена"}), 404
+
+    response = rows[0]
+
+    # Проверка прав
+    if not current_user.is_admin():     # Админ может править чужие ответы
+        if response["user_id"] != current_user.id:
+            return jsonify({"success": False, "error": "Нет прав на редактирование"}), 403
+
+    data = request.get_json()
+    field_id = data.get("field_id")
+    new_value = data.get("new_value")
+    reason = data.get("reason", "").strip()
+
+    if not field_id or new_value is None:
+        return jsonify({"success": False, "error": "Нужны field_id и new_value"}), 400
+
+    # Загружаем шаблон, чтобы знать тип поля
+    template = query_db("SELECT fields FROM templates WHERE id = %s", (response["template_id"],))
+    if not template:
+        return jsonify({"success": False, "error": "Шаблон не найден"}), 404
+
+    fields = template[0]["fields"]
+    field = next((f for f in fields if f["id"] == field_id), None)
+    if not field:
+        return jsonify({"success": False, "error": "Поле не найдено в шаблоне"}), 404
+
+    # Приводим new_value к правильному типу
+    if field["type"] == "number":
+        try:
+            new_value = float(new_value) if "." in str(new_value) else int(new_value)
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Значение должно быть числом"}), 400
+    elif field["type"] in ("institution", "custom_select"):
+        try:
+            new_value = int(new_value)
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Неверный ID"}), 400
+    elif field["type"] == "boolean":
+        new_value = bool(new_value)
+    elif field["type"] == "reference_text":
+        # new_value — объект {original, linked_id}
+        if not isinstance(new_value, dict):
+            return jsonify({"success": False, "error": "Неверный формат reference_text"}), 400
+        # Ищем linked_id, как при создании
+        original = new_value.get("original", "").strip()
+        match = query_db(
+            "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s",
+            (field["dict_id"], original)
+        )
+        new_value["linked_id"] = match[0]["id"] if match else None
+
+    # Сохраняем старое значение поля
+    old_data = response["data"]
+    old_value = old_data.get(field_id)
+
+    # Обновляем только это поле
+    new_data = dict(old_data)
+    new_data[field_id] = new_value
+
+    # 1. Записываем в историю (только изменение одного поля)
+    query_db(
+        "INSERT INTO response_history (response_id, changed_by, field_id, old_value, new_value, change_reason) "
+        "VALUES (%s, %s, %s, %s, %s, %s)",
+        (response_id, current_user.id, field_id,
+         json.dumps(old_value) if old_value is not None else None,
+         json.dumps(new_value), reason or None),
+        fetch=False
+    )
+
+    # 2. Обновляем заявку
+    query_db(
+        "UPDATE responses SET data = %s WHERE id = %s",
+        (json.dumps(new_data), response_id),
+        fetch=False
+    )
+
+    return jsonify({"success": True, "new_value": new_value})
+
 @app.route("/admin/responses")
 @login_required
 def admin_responses():
@@ -355,7 +440,7 @@ def responses(template_id):
     if current_user.is_admin():
         # Админ видит ВСЕ ответы с email пользователей
         rows = query_db("""
-            SELECT r.id, r.data, r.submitted_at, u.email
+            SELECT r.id, r.data, r.submitted_at,  u.email
             FROM responses r
             LEFT JOIN users u ON u.id = r.user_id
             WHERE r.template_id = %s
@@ -364,7 +449,7 @@ def responses(template_id):
     else:
         # Пользователь видит ТОЛЬКО свои ответы
         rows = query_db("""
-            SELECT r.id, r.data, r.submitted_at
+            SELECT r.id, r.data, r.submitted_at, r.user_id
             FROM responses r
             WHERE r.template_id = %s AND r.user_id = %s
             ORDER BY r.submitted_at DESC
