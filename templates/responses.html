@@ -36,6 +36,7 @@
                         <th>Дата</th>
                         {% if is_admin %}
                             <th>Заполнил</th>
+                            <th>Последнее изменение</th>
                         {% endif %}
                     </tr>
                 </thead>
@@ -90,9 +91,18 @@
                                     </div>
                                 </td>
                             {% endfor %}
-                            <td>{{ row.submitted_at }}</td>
+                            <td>{{ row.submitted_at.strftime("%d.%m.%Y %H:%M") }}</td>
                             {% if is_admin %}
                                 <td>{{ row.email or "—" }}</td>
+                                <td>
+                                    {% if row.last_edited_at %}
+                                        {{ row.last_edited_at.strftime("%d.%m.%Y %H:%M") }}
+                                        <button type="button" class="history-btn" data-response-id="{{ row.id }}"
+                                            title="Показать историю">📜</button>
+                                    {% else %}
+                                        <span style="color: #999;">не редактировалась</span>
+                                    {% endif %}
+                                </td>
                             {% endif %}
                         </tr>
                     {% endfor %}

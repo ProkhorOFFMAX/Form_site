@@ -222,4 +222,30 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    document.querySelectorAll('.history-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const responseId = this.dataset.responseId;
+            const response = await fetch(`/api/responses/${responseId}/history`);
+            const history = await response.json();
+
+            // Строим HTML для модального окна
+            let html = '<h3>История изменений</h3><table border="1" cellpadding="5">';
+            html += '<thead><tr><th>Когда</th><th>Кто</th><th>Поле</th><th>Было</th><th>Стало</th><th>Причина</th></tr></thead><tbody>';
+            history.forEach(h => {
+                html += `<tr>
+                    <td>${h.changed_at}</td>
+                    <td>${h.changed_by_email}</td>
+                    <td>${h.field_id}</td>
+                    <td>${JSON.stringify(h.old_value)}</td>
+                    <td>${JSON.stringify(h.new_value)}</td>
+                    <td>${h.change_reason || '—'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+
+            // Показываем в диалоге
+            // (нужен отдельный <dialog id="history-dialog"> в HTML)
+        });
+    });
 });

@@ -2,6 +2,8 @@ from dataclasses import fields
 from getopt import error
 from os.path import exists
 import os
+from unittest import result
+
 from dotenv import load_dotenv
 from sqlalchemy.engine import row
 
@@ -440,11 +442,14 @@ def responses(template_id):
     if current_user.is_admin():
         # Админ видит ВСЕ ответы с email пользователей
         rows = query_db("""
-            SELECT r.id, r.data, r.submitted_at,  u.email
-            FROM responses r
-            LEFT JOIN users u ON u.id = r.user_id
-            WHERE r.template_id = %s
-            ORDER BY r.submitted_at DESC
+            SELECT r.id, r.data, r.submitted_at,  u.email, 
+                    (SELECT MAX(h.changed_at) 
+                    FROM response_history h 
+                    WHERE h.response_id = r.id) AS last_edited_at  
+            FROM responses r 
+            LEFT JOIN users u ON u.id = r.user_id 
+            WHERE r.template_id = %s 
+            ORDER BY r.submitted_at DESC 
         """, (template_id,))
     else:
         # Пользователь видит ТОЛЬКО свои ответы
@@ -500,6 +505,49 @@ def responses(template_id):
         option_labels=option_labels,
         is_admin=current_user.is_admin()  # <-- передаём флаг в шаблон
     )
+
+@app.route("/api/responses/<int:response_id>/history")
+@login_required
+def response_history(response_id):
+    if not current_user.is_admin():
+        return jsonify({"error": "Доступ запрещён"}), 403
+
+    # Заявка существует
+    response = query_db("SELECT id, template_id FROM responses WHERE id = %s", (response_id,))
+    if not response:
+        return jsonify({"errors": "Заявка не найдена"}), 404
+
+    template_id = response[0]["template_id"]
+
+    # Загружаем историю с email пользователя
+    rows = query_db("""
+            SELECT h.id, h.changed_at, h.field_id, h.old_value, h.new_value, 
+                   h.change_reason, u.email AS changed_by_email
+            FROM response_history h
+            JOIN users u ON u.id = h.changed_by
+            WHERE h.response_id = %s
+            ORDER BY h.changed_at DESC
+        """, (response_id,))
+
+    # Загружаем шаблон, чтобы получить label полей
+    template = query_db("SELECT fields FROM templates WHERE id = %s", (template_id,))
+    fields = template[0]["fields"] if template else []
+    field_labels = {f["id"]: f["label"] for f in fields}
+
+    result = []
+    for row in rows:
+        result.append({
+            "id": row["id"],
+            "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
+            "changed_by_email": row["changed_by_email"],
+            "field_id": row["field_id"],
+            "field_label": field_labels.get(row["field_id"], row["field_id"]),
+            "old_value": row["old_value"],
+            "new_value": row["new_value"],
+            "change_reason": row["change_reason"]
+        })
+    return jsonify(result)
+
 
 @app.route("/api/institutions/<string:inst_type>")
 def get_institutions(inst_type):
