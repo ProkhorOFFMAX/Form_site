@@ -18,8 +18,13 @@
             <ul>
                 {% for t in templates %}
                     <li>
-                        <a href="{{ url_for('fill', template_id=t.id) }}">{{ t.name }}</a>
-                        <small>(создан: {{ t.created_at }})</small>
+                        {% if t.has_responses %}
+                            <a href="{{ url_for('responses', template_id=t.id) }}">{{ t.name }}</a>
+                            <small style="color: #27ae60;">(заполнена)</small>
+                        {% else %}
+                            <a href="{{ url_for('fill', template_id=t.id) }}">{{ t.name }}</a>
+                            <small>(заполнить)</small>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>

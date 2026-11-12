@@ -180,12 +180,16 @@ def index():
     else:
         # Пользователь видит только разрешённые
         templates = query_db("""
-            SELECT t.id, t.name, t.created_at
+            SELECT t.id, t.name, t.created_at, 
+                EXISTS(
+                    SELECT 1 FROM responses r
+                    WHERE r.template_id = t.id AND r.user_id = %s
+                ) AS has_responses 
             FROM templates t
             JOIN template_access a ON a.template_id = t.id
             WHERE a.user_id = %s
             ORDER BY t.created_at DESC
-        """, (current_user.id,))
+        """, (current_user.id, current_user.id))
         return render_template("index_user.html", templates=templates)
 
 
@@ -233,7 +237,6 @@ def admin_template_access(template_id):
     )
 
 
-
 @app.route('/create_template', methods=['GET', 'POST'])
 def create_template():
     if request.method == 'POST':
@@ -268,7 +271,17 @@ def fill(template_id):
 
     template = templates[0]
     fields = template["fields"]
-    return render_template("fill.html", template=template, fields=fields)
+
+    # проверка - пользователь заполнял эту анкету.
+    has_responses = False
+    if not current_user.is_admin():
+        rows = query_db(
+            "SELECT id FROM responses WHERE template_id = %s AND user_id = %s LIMIT 1",
+            (template_id, current_user.id)
+        )
+        has_responses = len(rows) > 0
+
+    return render_template("fill.html", template=template, fields=fields, has_responses=has_responses)
 
 @app.route('/api/responses', methods=['POST'])
 @login_required
