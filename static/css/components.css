@@ -235,3 +235,41 @@ dialog::backdrop {
 .user-info a:hover {
     text-decoration: underline;
 }
+
+/* Контейнер с горизонтальной прокруткой */
+.table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* плавная прокрутка на мобильных */
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+/* Сама таблица */
+.responses-table {
+    border-collapse: collapse;
+    width: max-content; /* таблица занимает столько, сколько нужно */
+    min-width: 100%;    /* но не меньше ширины контейнера */
+    font-size: 14px;
+}
+
+.responses-table th,
+.responses-table td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: left;
+    white-space: nowrap; /* не переносить текст в ячейках */
+    vertical-align: top;
+}
+
+.responses-table th {
+    background: #f4f4f4;
+    position: sticky;
+    top: 0; /* заголовок «прилипает» при вертикальной прокрутке */
+    z-index: 1;
+}
+
+.responses-table tbody tr:hover {
+    background: #f9f9f9;
+}
