@@ -20,11 +20,11 @@
                 <p>
                     <label>{{ field.label }}:<br>
                         {% if field.type == "text" %}
-                            <input type="text" name="{{ field.id }}" {% if field.required %}required{% endif %}>
+                            <input type="text" name="{{ field.id }}">
                         {% elif field.type == "number" %}
-                            <input type="number" step="any" name="{{ field.id }}" {% if field.required %}required{% endif %}>
+                            <input type="number" step="any" name="{{ field.id }}">
                         {% elif field.type == "boolean" %}
-                            <select name="{{ field.id }}" {% if field.required %}required{% endif %}>
+                            <select name="{{ field.id }}">
                                 <option value="">— выберите —</option>
                                 <option value="true">Да</option>
                                 <option value="false">Нет</option>
@@ -41,15 +41,13 @@
                             </select>
                         {% elif field.type == "custom_select" %}
                             <select name="{{ field.id }}" class="custom-select"
-                                    data-field-id="{{ field.field_id }}"
-                                    {% if field.required %}required{% endif %}>
+                                    data-field-id="{{ field.field_id }}">
                                 <option value="">— загрузка... —</option>
                             </select>
                         {% elif field.type == "reference_text" %}
                             <input type="text" name="{{ field.id }}_original"
                                    list="datalist-{{ field.id }}"
-                                   data-dict-id="{{ field.dict_id }}"
-                                   {% if field.required %}required{% endif %}>
+                                   data-dict-id="{{ field.dict_id }}">
                             <datalist id="datalist-{{ field.id }}"></datalist>
                         {% endif %}
                     </label>

@@ -6,6 +6,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
+    {% macro cell_class(value) -%}
+        {%- if value is none -%}
+            empty-cell
+        {%- elif value is string and value == '' -%}
+            empty-cell
+        {%- elif value is mapping and not value.get('original') -%}
+            empty-cell
+        {%- endif -%}
+    {%- endmacro %}
 
     <div class="user-info">
         Вы вошли как: <strong>{{ current_user.email }}</strong>
@@ -35,13 +44,17 @@
                         <tr>
                             <td>{{ row.id }}</td>
                             {% for field in fields %}
-                                <td>
+                                <td class="{{ cell_class(row.data.get(field.id)) }}">
                                 {% if field.type == "boolean" %}
-                                    {% if row.data.get(field.id) %}Да{% else %}Нет{% endif %}
+                                    {% if row.data.get(field.id) is not none %}
+                                        {{ "Да" if row.data.get(field.id) else "Нет" }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
                                 {% elif field.type == "institution" %}
                                     {% set inst_id = row.data.get(field.id) %}
                                     {% if inst_id %}
-                                        {{ inst_names.get(inst_id, "—") }}
+                                        {{ inst_names.get(inst_id|int, "—") }}
                                     {% else %}
                                         —
                                     {% endif %}
@@ -55,12 +68,12 @@
                                 {% elif field.type == "reference_text" %}
                                     {% set val = row.data.get(field.id, {}) %}
                                     {% if val is mapping %}
-                                        {{ val.get("original", "—") }}
+                                        {{ val.get("original") or "—" }}
                                     {% else %}
-                                        {{ val }}
+                                        {{ val or "—" }}
                                     {% endif %}
                                 {% else %}
-                                    {{ row.data.get(field.id, "—") }}
+                                    {{ row.data.get(field.id) or "—" }}
                                 {% endif %}
                                 </td>
                             {% endfor %}

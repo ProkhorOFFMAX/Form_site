@@ -273,3 +273,16 @@ dialog::backdrop {
 .responses-table tbody tr:hover {
     background: #f9f9f9;
 }
+
+.responses-table td.empty-cell {
+    background: #fff3cd;  /* мягкий жёлтый */
+    color: #856404;
+}
+
+/* Опционально: подсказка при наведении */
+.responses-table td.empty-cell::after {
+    content: " (не заполнено)";
+    font-size: 11px;
+    color: #999;
+    font-style: italic;
+}

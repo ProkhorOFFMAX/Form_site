@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
     btnSave.addEventListener('click', async function() {
         const templateId = parseInt(this.dataset.templateId);
         const answers = {};
+        const emptyFields = [];
         let hasError = false;
 
         document.querySelectorAll('#form-container [name]').forEach(function(input) {
@@ -83,10 +84,22 @@ document.addEventListener('DOMContentLoaded', function() {
             // Пропускаем служебные поля
             if (name.endsWith('_type')) return;
 
+            // Название поля для предупреждения
+            const labelEl = input.closest('label');
+            let fieldLabel = name;
+            if (labelEl) {
+                // текст до двоеточия (например, "Имя:")
+                fieldLabel = labelEl.textContent.split(':')[0].trim();
+            }
+
             if (name.endsWith('_original')) {
                 const fieldId = name.replace('_original', '');
+                const original = input.value.trim();
+                if (original === '') {
+                    emptyFields.push(fieldLabel);
+                }
                 answers[fieldId] = {
-                    original: input.value.trim(),
+                    original: original,
                     linked_id: null
                 };
                 return;
@@ -94,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (input.tagName === 'SELECT') {
                 if (input.value === '') {
-                    if (input.required) hasError = true;
+                    emptyFields.push(fieldLabel);   // Поле пустое запомнено
                     return;
                 }
                 if (input.value === 'true' || input.value === 'false') {
@@ -107,15 +120,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     answers[name] = input.value;
                 }
             } else if (input.type === 'number') {
-                answers[name] = input.value ? parseFloat(input.value) : null;
+                const val = input.value.trim();
+                if (val === '') {
+                    emptyFields.push(fieldLabel);
+                    return;
+                }
+                answers[name] = parseFloat(val);
             } else {
-                answers[name] = input.value.trim();
+                const val = input.value.trim();
+                if (val === '') {
+                    emptyFields.push(fieldLabel);
+                    return;
+                }
+                answers[name] = val;
             }
         });
 
-        if (hasError) {
-            showError('Заполните все обязательные поля');
-            return;
+        // --- Предупреждение о пустых полях ---
+        if (emptyFields.length > 0) {
+            const list = emptyFields.map(f => `• ${f}`).join('\n');
+            const confirmed = confirm(
+                `Следующие поля не заполнены:\n${list}\n\nВсё равно сохранить?`
+            );
+            if (!confirmed) return;
         }
 
         try {

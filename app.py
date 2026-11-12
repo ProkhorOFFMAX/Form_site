@@ -286,9 +286,9 @@ def api_responses():
 
     fields = templates[0]["fields"]
     # Валидация ответов (упрощённо — проверяем, что все обязательные поля заполнены)
-    for field in fields:
-        if field.get("required") and not answers.get(field["id"]):
-            return jsonify({"success": False, "error": f"Поле «{field['label']}» обязательно"}), 400
+    #for field in fields:
+    #    if field.get("required") and not answers.get(field["id"]):
+    #        return jsonify({"success": False, "error": f"Поле «{field['label']}» обязательно"}), 400
 
     for field in fields:
         if field.get("type") == "reference_text":
