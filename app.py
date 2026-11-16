@@ -506,47 +506,92 @@ def responses(template_id):
         is_admin=current_user.is_admin()  # <-- передаём флаг в шаблон
     )
 
+
 @app.route("/api/responses/<int:response_id>/history")
 @login_required
-def response_history(response_id):
+def api_response_history(response_id):
     if not current_user.is_admin():
         return jsonify({"error": "Доступ запрещён"}), 403
 
-    # Заявка существует
     response = query_db("SELECT id, template_id FROM responses WHERE id = %s", (response_id,))
     if not response:
-        return jsonify({"errors": "Заявка не найдена"}), 404
+        return jsonify({"error": "Заявка не найдена"}), 404
 
     template_id = response[0]["template_id"]
 
-    # Загружаем историю с email пользователя
     rows = query_db("""
-            SELECT h.id, h.changed_at, h.field_id, h.old_value, h.new_value, 
-                   h.change_reason, u.email AS changed_by_email
-            FROM response_history h
-            JOIN users u ON u.id = h.changed_by
-            WHERE h.response_id = %s
-            ORDER BY h.changed_at DESC
-        """, (response_id,))
+        SELECT h.id, h.changed_at, h.field_id, h.old_value, h.new_value,
+               h.change_reason, u.email AS changed_by_email
+        FROM response_history h
+        JOIN users u ON u.id = h.changed_by
+        WHERE h.response_id = %s
+        ORDER BY h.changed_at DESC
+    """, (response_id,))
 
-    # Загружаем шаблон, чтобы получить label полей
+    # Загружаем поля шаблона для label и type
     template = query_db("SELECT fields FROM templates WHERE id = %s", (template_id,))
     fields = template[0]["fields"] if template else []
-    field_labels = {f["id"]: f["label"] for f in fields}
+    field_map = {f["id"]: f for f in fields}  # {field_id: field}
 
     result = []
     for row in rows:
+        field = field_map.get(row["field_id"], {})
         result.append({
             "id": row["id"],
             "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
             "changed_by_email": row["changed_by_email"],
             "field_id": row["field_id"],
-            "field_label": field_labels.get(row["field_id"], row["field_id"]),
+            "field_label": field.get("label", row["field_id"]),
+            "field_type": field.get("type", "text"),
             "old_value": row["old_value"],
             "new_value": row["new_value"],
+            "old_display": decode_value(field.get("type", "text"), row["old_value"]),
+            "new_display": decode_value(field.get("type", "text"), row["new_value"]),
             "change_reason": row["change_reason"]
         })
+
     return jsonify(result)
+
+
+@app.route("/responses/<int:response_id>/history")
+@login_required
+def response_history_page(response_id):
+    if not current_user.is_admin():
+        return "Доступ запрещён", 403
+
+    response = query_db("SELECT template_id FROM responses WHERE id = %s", (response_id,))
+    if not response:
+        return "Заявка не найдена", 404
+
+    return render_template(
+        "response_history.html",
+        response_id=response_id,
+        template_id=response[0]["template_id"]
+    )
+
+
+def decode_value(field_type, value):
+    """Превращает ID в читаемое название для institution/custom_select."""
+    if value is None:
+        return "—"
+
+    if field_type == "institution":
+        rows = query_db("SELECT short_name FROM educational_institutions WHERE id = %s", (value,))
+        return rows[0]["short_name"] if rows else f"ОУ #{value} (удалено)"
+
+    if field_type == "custom_select":
+        rows = query_db("SELECT label FROM field_options WHERE id = %s", (value,))
+        return rows[0]["label"] if rows else f"Вариант #{value} (удалён)"
+
+    if field_type == "reference_text":
+        if isinstance(value, dict):
+            return value.get("original", "—")
+        return str(value)
+
+    if field_type == "boolean":
+        return "Да" if value else "Нет"
+
+    return str(value) if value is not None else "—"
 
 
 @app.route("/api/institutions/<string:inst_type>")

@@ -97,8 +97,8 @@
                                 <td>
                                     {% if row.last_edited_at %}
                                         {{ row.last_edited_at.strftime("%d.%m.%Y %H:%M") }}
-                                        <button type="button" class="history-btn" data-response-id="{{ row.id }}"
-                                            title="Показать историю">📜</button>
+                                        <a href="{{ url_for('response_history_page', response_id=row.id) }}"
+                                            title="История изменений">📜</a>
                                     {% else %}
                                         <span style="color: #999;">не редактировалась</span>
                                     {% endif %}

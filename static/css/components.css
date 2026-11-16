@@ -427,3 +427,15 @@ dialog::backdrop {
 #edit-field-dialog .cancel:hover {
     background: #e0e0e0;
 }
+
+.history-old {
+    color: #c0392b;
+    text-decoration: line-through;
+    background: #fdecea;
+}
+
+.history-new {
+    color: #27ae60;
+    background: #eafaf1;
+    font-weight: 500;
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>История заявки #{{ response_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+</head>
+<body>
+
+    <div class="user-info">
+        Вы вошли как: <strong>{{ current_user.email }}</strong> (админ)
+        | <a href="{{ url_for('logout') }}">Выйти</a>
+    </div>
+
+    <h1>История заявки #{{ response_id }}</h1>
+
+    <div id="history-container">
+        <p>Загрузка...</p>
+    </div>
+
+    <p>
+        <a href="{{ url_for('responses', template_id=template_id) }}">← К ответам</a>
+        | <a href="{{ url_for('index') }}">На главную</a>
+    </p>
+
+
+    <script>
+        const responseId = {{ response_id }};
+        const templateId = {{ template_id }};
+
+        fetch(`/api/responses/${responseId}/history`, {
+            credentials: 'same-origin'
+        })
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(history => {
+            const container = document.getElementById('history-container');
+
+            if (history.length === 0) {
+                container.innerHTML = '<p style="color: #888; font-style: italic;">Заявка не редактировалась.</p>';
+                return;
+            }
+
+            let html = '<div class="table-scroll"><table class="responses-table">';
+            html += '<thead><tr>';
+            html += '<th>Когда</th><th>Кто изменил</th><th>Поле</th><th>Было</th><th>Стало</th><th>Причина</th>';
+            html += '</tr></thead><tbody>';
+
+            history.forEach(h => {
+                const date = h.changed_at ? new Date(h.changed_at).toLocaleString('ru-RU') : '—';
+                html += '<tr>';
+                html += `<td>${date}</td>`;
+                html += `<td>${h.changed_by_email}</td>`;
+                html += `<td>${h.field_label}</td>`;
+                html += `<td class="history-old">${h.old_display || '—'}</td>`;
+                html += `<td class="history-new">${h.new_display || '—'}</td>`;
+                html += `<td>${h.change_reason || '—'}</td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            document.getElementById('history-container').innerHTML =
+                `<p style="color: red;">Ошибка загрузки: ${err.message}</p>`;
+        });
+    </script>
+</body>
+</html>
