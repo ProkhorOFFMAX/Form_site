@@ -1,10 +1,253 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Управление словарями</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
+    <div class="user-info">
+        Вы вошли как: <strong>{{ current_user.email }}</strong> (админ)
+        | <a href="{{ url_for('logout') }}">Выйти</a>
+    </div>
 
+    <div class="page">
+        <h1>Управление словарями</h1>
+
+        <label>Выберите словарь:
+            <select id="dict-select">
+                <option value="">— загрузка... —</option>
+            </select>
+        </label>
+
+        <div id="orphans-container" style="margin-top: 20px;">
+            <p style="color: #888;">Выберите словарь, чтобы увидеть непривязанные значения.</p>
+        </div>
+
+        <p style="margin-top: 20px;">
+            <a href="{{ url_for('index') }}">На главную</a>
+        </p>
+    </div>
+    <dialog id="link-dialog">
+        <h2>Сопоставить значение</h2>
+        <p>Выберите значение из словаря для: <strong id="link-original-text"></strong></p>
+
+        <div id="link-options-list" style="max-height: 300px; overflow-y: auto; margin: 12px 0; border: 1px solid #eee; border-radius: 4px; padding: 8px;">
+            <!-- Сюда JS вставит список radio-кнопок -->
+        </div>
+
+        <div class="dialog-actions">
+            <button type="button" id="btn-confirm-link">Сопоставить</button>
+            <button type="button" class="cancel">Отмена</button>
+        </div>
+    </dialog>
+
+    <script>
+        const dictSelect = document.getElementById('dict-select');
+        const container = document.getElementById('orphans-container');
+
+        // 1. Загрузка списка словарей
+        fetch('/api/reference_dicts')
+            .then(r => r.json())
+            .then(dicts => {
+                dictSelect.innerHTML = '<option value="">— выберите словарь —</option>';
+                dicts.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = d.name;
+                    dictSelect.appendChild(opt);
+                });
+            });
+
+        // 2. Загрузка "сирот" при выборе словаря
+        dictSelect.addEventListener('change', async function() {
+            const dictId = this.value;
+            if (!dictId) {
+                container.innerHTML = '<p style="color: #888;">Выберите словарь, чтобы увидеть непривязанные значения.</p>';
+                return;
+            }
+
+            container.innerHTML = '<p>Загрузка...</p>';
+            try {
+                const response = await fetch(`/api/reference_dicts/${dictId}/orphans`);
+                const orphans = await response.json();
+
+                if (orphans.length === 0) {
+                    container.innerHTML = '<p style="color: #888;">Нет непривязанных значений.</p>';
+                    return;
+                }
+
+                let html = '<div class="table-scroll"><table class="responses-table"><thead><tr>';
+                html += '<th>Значение в заявке</th><th>Кол-во заявок</th><th>Действия</th>';
+                html += '</tr></thead><tbody>';
+
+                orphans.forEach(o => {
+                    const escaped = o.original.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    html += `<tr>
+                        <td>${o.original}</td>
+                        <td>${o.count}</td>
+                        <td>
+                            <button type="button" class="add-btn"
+                                    onclick="addToDict(${dictId}, '${escaped}', '${o.field_id}', '${o.part_name || ''}')">
+                                Добавить в словарь
+                            </button>
+                            <button type="button" class="edit-field-btn"
+                                    onclick="linkToExisting(${dictId}, '${escaped}', '${o.field_id}', '${o.part_name || ''}', [${o.response_ids}])">
+                                Сопоставить
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<p style="color: red;">Ошибка загрузки: ${err.message}</p>`;
+            }
+        });
+
+        // 3. Добавить в словарь
+        async function addToDict(dictId, original, fieldId, partName) {
+            if (!confirm(`Добавить «${original}» в словарь?`)) return;
+
+            const response = await fetch('/api/reference_items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dict_id: parseInt(dictId), label: original })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Значение добавлено. Теперь привяжите заявки.');
+                await linkToExisting(dictId, original, fieldId, partName, null); // response_ids загрузим внутри
+            } else {
+                alert(data.error || 'Ошибка добавления');
+            }
+        }
+
+        // 4. Сопоставить с существующим
+        async function linkToExisting(dictId, original, fieldId, partName, responseIds) {
+            // Если responseIds не переданы — загружаем «сирот» заново
+            if (!responseIds) {
+                const orphansResp = await fetch(`/api/reference_dicts/${dictId}/orphans`);
+                const orphans = await orphansResp.json();
+                const target = orphans.find(o => o.original === original && o.field_id === fieldId && o.part_name === partName);
+                if (!target) {
+                    alert('Значение не найдено');
+                    return;
+                }
+                responseIds = target.response_ids;
+            }
+
+            // Загружаем значения словаря
+            const itemsResp = await fetch(`/api/reference_items?dict_id=${dictId}`);
+            const items = await itemsResp.json();
+            if (items.length === 0) {
+                alert('В словаре нет значений. Сначала добавьте.');
+                return;
+            }
+
+            // Заполняем диалог
+            const dialog = document.getElementById('link-dialog');
+            document.getElementById('link-original-text').textContent = original;
+            const list = document.getElementById('link-options-list');
+            list.innerHTML = '';
+
+            items.forEach(item => {
+                const label = document.createElement('label');
+                label.style.display = 'block';
+                label.style.padding = '6px';
+                label.style.cursor = 'pointer';
+
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'link-choice';
+                radio.value = item.id;
+                radio.style.marginRight = '8px';
+
+                label.appendChild(radio);
+                label.appendChild(document.createTextNode(item.label));
+                list.appendChild(label);
+            });
+
+            // Сохраняем контекст для подтверждения
+            dialog.dataset.dictId = dictId;
+            dialog.dataset.original = original;
+            dialog.dataset.fieldId = fieldId;
+            dialog.dataset.partName = partName || '';
+            dialog.dataset.responseIds = JSON.stringify(responseIds);
+
+            dialog.showModal();
+        }
+
+        // Обработчик кнопки "Сопоставить" в диалоге
+        document.getElementById('btn-confirm-link').addEventListener('click', async function() {
+            const dialog = document.getElementById('link-dialog');
+            const selected = dialog.querySelector('input[name="link-choice"]:checked');
+            if (!selected) {
+                alert('Выберите значение');
+                return;
+            }
+
+            const linkedId = parseInt(selected.value);
+            const dictId = parseInt(dialog.dataset.dictId);
+            const original = dialog.dataset.original;
+            const fieldId = dialog.dataset.fieldId;
+            const partName = dialog.dataset.partName || null;
+            const responseIds = JSON.parse(dialog.dataset.responseIds);
+
+            dialog.close();
+
+            // Обновляем каждую заявку
+            let updated = 0;
+            for (const rid of responseIds) {
+                try {
+                    let newValue;
+
+                    if (partName) {
+                        // composite: загружаем текущее значение composite-поля
+                        const respResp = await fetch(`/api/responses/${rid}`);
+                        const respData = await respResp.json();
+                        const currentComposite = respData.data[fieldId] || {};
+
+                        // Обновляем только нужную часть
+                        const selectedItem = items.find(i => i.id === linkedId);
+                        newValue = { ...currentComposite };
+                        newValue[partName] = { original: selectedItem.label, linked_id: linkedId };
+                    } else {
+                        // обычное reference_text
+                        const selectedItem = items.find(i => i.id === linkedId);
+                        newValue = { original: selectedItem.label, linked_id: linkedId };
+                    }
+
+                    const patchResp = await fetch(`/api/responses/${rid}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            field_id: fieldId,
+                            new_value: newValue,
+                            reason: 'Сопоставление админом'
+                        })
+                    });
+
+                    if (patchResp.ok) updated++;
+                } catch (err) {
+                    console.error('Ошибка PATCH для заявки', rid, err);
+                }
+            }
+
+            alert(`Обновлено заявок: ${updated} из ${responseIds.length}`);
+            // Перезагружаем список
+            document.getElementById('dict-select').dispatchEvent(new Event('change'));
+        });
+        //Кнопка отмены
+        document.addEventListener('click', function(e) {
+            const cancelBtn = e.target.closest('.cancel');
+            if (cancelBtn) {
+                const dialog = cancelBtn.closest('dialog');
+                if (dialog) dialog.close();
+            }
+        });
+    </script>
 </body>
 </html>

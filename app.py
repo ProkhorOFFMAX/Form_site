@@ -356,6 +356,21 @@ def api_responses():
 
     return jsonify({"success": True, "id": rows[0]["id"]}), 201
 
+
+@app.route("/api/responses/<int:response_id>", methods=["GET"])
+@login_required
+def api_get_response(response_id):
+    rows = query_db("SELECT id, template_id, data, user_id FROM responses WHERE id = %s", (response_id,))
+    if not rows:
+        return jsonify({"error": "Заявка не найдена"}), 404
+
+    response = rows[0]
+    if not current_user.is_admin() and response["user_id"] != current_user.id:
+        return jsonify({"error": "Доступ запрещён"}), 403
+
+    return jsonify(response)
+
+
 @app.route('/api/responses/<int:response_id>', methods=['PATCH'])
 @login_required
 def api_update_response_field(response_id):
@@ -408,11 +423,20 @@ def api_update_response_field(response_id):
             return jsonify({"success": False, "error": "Неверный формат reference_text"}), 400
         # Ищем linked_id, как при создании
         original = new_value.get("original", "").strip()
-        match = query_db(
-            "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s",
-            (field["dict_id"], original)
-        )
-        new_value["linked_id"] = match[0]["id"] if match else None
+        linked_id = new_value.get("linked_id")
+        if linked_id is not None:
+            exists = query_db(
+                "SELECT id FROM reference_items WHERE id = %s AND dict_id = %s",
+                (linked_id, field["dict_id"])
+            )
+            if not exists:
+                return jsonify({"success": False, "error": "Указанный linked_id не найден в словаре"}), 400
+        else:
+            match = query_db(
+                "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s",
+                (field["dict_id"], original)
+            )
+            new_value["linked_id"] = match[0]["id"] if match else None
     elif field["type"] == "composite":
         if not isinstance(new_value, dict):
             return jsonify({"success": False, "error": "Неверный формат composite"}), 400
@@ -1008,46 +1032,44 @@ def api_reference_orphans(dict_id):
     if not current_user.is_admin():
         return jsonify({"error": "Доступ запрещён"}), 403
 
-    # Находим все шаблоны, где есть поле reference_text с этим dict_id
-    # (или composite-часть с reference_text)
     templates = query_db("SELECT id, name, fields FROM templates")
-    relevant_field_ids = []  # список (template_id, field_id, part_name)
+    relevant_fields = []  # список (template_id, field_id, part_name)
+
     for t in templates:
         for field in t["fields"]:
             if field.get("type") == "reference_text" and field.get("dict_id") == dict_id:
-                relevant_field_ids.append((t["id"], field["id"], None))
+                relevant_fields.append((t["id"], field["id"], None))
             elif field.get("type") == "composite":
                 for part in field.get("parts", []):
                     if part.get("type") == "reference_text" and part.get("dict_id") == dict_id:
-                        relevant_field_ids.append((t["id"], field["id"], part["name"]))
+                        relevant_fields.append((t["id"], field["id"], part["name"]))
 
-    if not relevant_field_ids:
+    if not relevant_fields:
         return jsonify([])
 
-    # Собираем все original значения из responses, где linked_id = null
-    orphans = {}  # {original: [список response_id]}
+    # Ключ: (original, field_id, part_name) -> [response_ids]
+    orphans = {}
 
-    for template_id, field_id, part_name in relevant_field_ids:
-        rows = query_db(
-            "SELECT id, data FROM responses WHERE template_id = %s", (template_id,)
-        )
+    for template_id, field_id, part_name in relevant_fields:
+        rows = query_db("SELECT id, data FROM responses WHERE template_id = %s", (template_id,))
         for row in rows:
             data = row["data"]
             if part_name:
-                # composite
                 val = data.get(field_id, {}).get(part_name)
-                if isinstance(val, dict) and val.get("original") and not val.get("linked_id"):
-                    orphans.setdefault(val["original"], []).append(row["id"])
             else:
-                # обычное reference_text
                 val = data.get(field_id)
-                if isinstance(val, dict) and val.get("original") and not val.get("linked_id"):
-                    orphans.setdefault(val["original"], []).append(row["id"])
 
+            if isinstance(val, dict) and val.get("original") and not val.get("linked_id"):
+                key = (val["original"], field_id, part_name)
+                orphans.setdefault(key, []).append(row["id"])
+
+    # Формируем результат
     result = []
-    for original, response_ids in orphans.items():
+    for (original, field_id, part_name), response_ids in orphans.items():
         result.append({
             "original": original,
+            "field_id": field_id,
+            "part_name": part_name,
             "count": len(response_ids),
             "response_ids": response_ids
         })
