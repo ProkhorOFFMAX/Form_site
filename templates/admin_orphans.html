@@ -176,6 +176,7 @@
             dialog.dataset.fieldId = fieldId;
             dialog.dataset.partName = partName || '';
             dialog.dataset.responseIds = JSON.stringify(responseIds);
+            dialog.dataset.items = JSON.stringify(items);
 
             dialog.showModal();
         }
@@ -195,6 +196,7 @@
             const fieldId = dialog.dataset.fieldId;
             const partName = dialog.dataset.partName || null;
             const responseIds = JSON.parse(dialog.dataset.responseIds);
+            const items = JSON.parse(dialog.dataset.items || '[]');
 
             dialog.close();
 

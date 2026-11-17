@@ -424,19 +424,19 @@ def api_update_response_field(response_id):
         # Ищем linked_id, как при создании
         original = new_value.get("original", "").strip()
         linked_id = new_value.get("linked_id")
-        if linked_id is not None:
-            exists = query_db(
-                "SELECT id FROM reference_items WHERE id = %s AND dict_id = %s",
-                (linked_id, field["dict_id"])
-            )
-            if not exists:
-                return jsonify({"success": False, "error": "Указанный linked_id не найден в словаре"}), 400
-        else:
-            match = query_db(
-                "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s",
-                (field["dict_id"], original)
-            )
-            new_value["linked_id"] = match[0]["id"] if match else None
+        #if linked_id is not None:
+        #    exists = query_db(
+        #        "SELECT id FROM reference_items WHERE id = %s AND dict_id = %s",
+        #        (linked_id, field["dict_id"])
+        #    )
+        #    if not exists:
+        #        return jsonify({"success": False, "error": "Указанный linked_id не найден в словаре"}), 400
+        #else:
+        match = query_db(
+            "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s",
+            (field["dict_id"], original)
+        )
+        new_value["linked_id"] = match[0]["id"] if match else None
     elif field["type"] == "composite":
         if not isinstance(new_value, dict):
             return jsonify({"success": False, "error": "Неверный формат composite"}), 400
