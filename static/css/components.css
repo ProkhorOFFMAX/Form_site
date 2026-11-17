@@ -439,3 +439,215 @@ dialog::backdrop {
     background: #eafaf1;
     font-weight: 500;
 }
+
+/* === Composite-поле (части) === */
+
+#composite-block {
+    margin: 16px 0;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fafafa;
+}
+
+#composite-block > label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+#composite-parts-container {
+    margin-bottom: 8px;
+}
+
+.composite-part-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.composite-part-row input.part-label {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.composite-part-row select.part-type {
+    min-width: 140px;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.composite-part-row .part-ref-container {
+    display: flex;
+    align-items: center;
+}
+
+.composite-part-row select.part-ref-select {
+    min-width: 140px;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.composite-part-row input:focus,
+.composite-part-row select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+}
+
+/* Кнопка удаления части (переиспользует .remove-btn, но уточним) */
+.composite-part-row .remove-btn {
+    flex-shrink: 0;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.composite-part-row .remove-btn:hover {
+    background: #c0392b;
+}
+
+/* Кнопка "+ Добавить часть" */
+#btn-add-part {
+    margin-top: 4px;
+}
+
+#add-field-dialog {
+    width: 700px;        /* было 450px */
+    max-width: 90vw;     /* чтобы на маленьких экранах не вылезал */
+    max-height: 85vh;    /* чтобы не упирался в край экрана */
+    overflow-y: auto;    /* если содержимое не влезает по высоте */
+}
+
+.composite-part-row {
+    display: flex;
+    flex-wrap: wrap;         /* разрешаем перенос */
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+}
+
+/* Название — на всю ширину, вынуждает перенос */
+.composite-part-row input.part-label {
+    flex: 0 0 100%;          /* 100% ширины, не растягивается и не сжимается */
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+/* Вторая строка: селекты и кнопка */
+.composite-part-row select.part-type,
+.composite-part-row .part-ref-container select {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.composite-part-row .part-ref-container {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.composite-part-row .part-ref-container:empty {
+    display: none;           /* пустой контейнер не занимает место */
+}
+
+/* Кнопка удаления — в конце второй строки */
+.composite-part-row .remove-btn {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    align-self: center;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 8px;       /* прижимает кнопку к правому краю */
+}
+
+.composite-part-row .remove-btn:hover {
+    background: #c0392b;
+}
+
+.composite-field-block {
+    border: 1px solid #3498db;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #f8fbff;
+}
+
+.composite-field-block > div:first-child {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.composite-field-block .composite-parts-list {
+    margin-left: 16px;
+    padding-left: 12px;
+    border-left: 2px solid #cce5ff;
+}
+
+.composite-part-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.composite-part-row input.part-label {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.composite-part-row .remove-btn {
+    flex-shrink: 0;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}

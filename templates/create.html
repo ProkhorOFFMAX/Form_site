@@ -63,9 +63,14 @@
                     <option value="boolean">Да/Нет</option>
                     <option value="institution">Образовательное учреждение</option>
                     <option value="custom_select">Выбор из списка</option>
+                    <option value="composite">Составное поле</option>
                 </select>
             </label>
-
+            <div id="composite-block" style="display: none;">
+                <label>Части составного поля:</label>
+                <div id="composite-parts-container"></div>
+                <button type="button" class="add-btn" id="btn-add-part">+ Добавить часть</button>
+            </div>
             <div id="options-block" style="display: none;">
                 <label>Варианты значений:</label>
                     <div id="options-container"></div>
@@ -118,6 +123,35 @@
         const optionsContainer = document.getElementById('options-container');
         const container = document.getElementById('fields-container');
         const hiddenInput = document.getElementById('fields_json');
+        let customFieldsCache = {};
+        let referenceDictsCache = {};
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 1. Загружаем кэш справочников и словарей
+            await loadReferenceCache();
+
+            // 2. Только после этого отрисовываем поля
+            renderFields();
+        });
+
+        async function loadReferenceCache() {
+            try {
+                const [cfRes, rdRes] = await Promise.all([
+                    fetch('/api/custom_fields'),
+                    fetch('/api/reference_dicts')
+                ]);
+                const cfList = await cfRes.json();
+                const rdList = await rdRes.json();
+
+                customFieldsCache = {};
+                cfList.forEach(f => { customFieldsCache[f.id] = f.label; });
+
+                referenceDictsCache = {};
+                rdList.forEach(d => { referenceDictsCache[d.id] = d.name; });
+            } catch (err) {
+                console.error('Ошибка загрузки справочников:', err);
+            }
+        }
 
         document.querySelectorAll('.cancel').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -171,7 +205,9 @@
             document.getElementById('existing-field-label').value = '';
             document.getElementById('existing-ref-select').value = '';
             document.getElementById('existing-options-preview').innerHTML = '<p style="color: #888; font-style: italic;">Выберите поле, чтобы увидеть варианты</p>';
-
+            // Состовной блок
+            document.getElementById('composite-block').style.display = 'none';
+            document.getElementById('composite-parts-container').innerHTML = '';
         }
 
         // --- Сброс диалога при открытии ---
@@ -184,9 +220,126 @@
         // --- Отрисовка списка полей (замена старой renderFields) ---
         function renderFields() {
             const fields = getCurrentFields();
+
+
             container.innerHTML = '';
 
             fields.forEach((field, index) => {
+
+                // --- Если это composite — рисуем особый блок ---
+                if (field.type === 'composite') {
+                    const block = document.createElement('div');
+                    block.className = 'composite-field-block';
+                    block.style.cssText = 'border: 1px solid #3498db; border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #f8fbff;';
+
+                    // Заголовок composite-поля
+                    const header = document.createElement('div');
+                    header.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 8px;';
+
+                    const labelInput = document.createElement('input');
+                    labelInput.type = 'text';
+                    labelInput.placeholder = 'Название составного поля';
+                    labelInput.value = field.label || '';
+                    labelInput.style.flex = '1';
+                    labelInput.addEventListener('input', function() {
+                        field.label = this.value.trim();
+                        hiddenInput.value = JSON.stringify(fields);
+                    });
+
+                    const removeFieldBtn = document.createElement('button');
+                    removeFieldBtn.type = 'button';
+                    removeFieldBtn.className = 'remove-btn';
+                    removeFieldBtn.textContent = '✕';
+                    removeFieldBtn.title = 'Удалить составное поле';
+                    removeFieldBtn.addEventListener('click', () => {
+                        fields.splice(index, 1);
+                        fields.forEach((f, i) => { f.id = 'f' + (i + 1); });
+                        hiddenInput.value = JSON.stringify(fields);
+                        renderFields();
+                    });
+
+                    header.appendChild(labelInput);
+                    header.appendChild(removeFieldBtn);
+                    block.appendChild(header);
+
+                    // Список частей
+                    const partsContainer = document.createElement('div');
+                    partsContainer.className = 'composite-parts-list';
+
+                    (field.parts || []).forEach((part, partIndex) => {
+                        const partRow = document.createElement('div');
+                        partRow.className = 'composite-part-row';
+
+                        // Название части
+                        const partLabel = document.createElement('input');
+                        partLabel.type = 'text';
+                        partLabel.className = 'part-label';
+                        partLabel.placeholder = 'Название части';
+                        partLabel.value = part.label || '';
+                        partLabel.addEventListener('input', function() {
+                            part.label = this.value.trim();
+                            hiddenInput.value = JSON.stringify(fields);
+                        });
+
+                        // Тип части (только для отображения, менять нельзя —
+                        // если нужно менять, добавьте select как при создании)
+                        const partTypeDisplay = document.createElement('span');
+
+                        partTypeDisplay.style.cssText = 'padding: 4px 8px; background: #e9ecef; border-radius: 4px; font-size: 13px;';
+                        let typeText = getTypeLabel(part.type);
+
+                        if (part.type === 'custom_select' && part.field_id) {
+                            const refName = customFieldsCache[part.field_id] || `справочник #${part.field_id}`;
+                            typeText += `: ${refName}`;
+                        } else if (part.type === 'reference_text' && part.dict_id) {
+                            const dictName = referenceDictsCache[part.dict_id] || `словарь #${part.dict_id}`;
+                            typeText += `: ${dictName}`;
+                        }
+                        partTypeDisplay.textContent = typeText;
+
+                        // Кнопка удаления части
+                        const removePartBtn = document.createElement('button');
+                        removePartBtn.type = 'button';
+                        removePartBtn.className = 'remove-btn';
+                        removePartBtn.textContent = '✕';
+                        removePartBtn.title = 'Удалить часть';
+                        removePartBtn.addEventListener('click', () => {
+                            field.parts.splice(partIndex, 1);
+                            hiddenInput.value = JSON.stringify(fields);
+                            renderFields();
+                        });
+
+                        partRow.appendChild(partLabel);
+                        partRow.appendChild(partTypeDisplay);
+                        partRow.appendChild(removePartBtn);
+                        partsContainer.appendChild(partRow);
+                    });
+
+                    block.appendChild(partsContainer);
+
+                    // Кнопка "+ Добавить часть"
+                    const addPartBtn = document.createElement('button');
+                    addPartBtn.type = 'button';
+                    addPartBtn.className = 'add-btn';
+                    addPartBtn.textContent = '+ Добавить часть';
+                    addPartBtn.style.marginTop = '8px';
+                    addPartBtn.addEventListener('click', () => {
+                        field.parts = field.parts || [];
+                        field.parts.push({
+                            name: 'part' + (field.parts.length + 1),
+                            label: '',
+                            type: 'text'
+                        });
+                        hiddenInput.value = JSON.stringify(fields);
+                        renderFields();
+                    });
+                    block.appendChild(addPartBtn);
+
+                    container.appendChild(block);
+                    return; // переходим к следующему полю
+                }
+
+                // --- Обычное поле
                 const row = document.createElement('div');
                 row.className = 'field-row';
 
@@ -277,6 +430,18 @@
             }
         }
 
+        function getTypeLabel(type) {
+            const labels = {
+                'text': 'Текст',
+                'number': 'Число',
+                'boolean': 'Да/Нет',
+                'institution': 'ОУ',
+                'custom_select': 'Выбор из списка',
+                'reference_text': 'Текст (с выбором)'
+            };
+            return labels[type] || type;
+        }
+
         function addFieldToTemplate(field) {
             const fields = getCurrentFields();
             fields.push(field);
@@ -298,6 +463,7 @@
          document.getElementById('new-field-type').addEventListener('change',  function() {
             const optionsBlock = document.getElementById('options-block');
             const dictNameBlock = document.getElementById('dict-name-block')
+            const compositeBlock = document.getElementById('composite-block');
 
             optionsBlock.style.display = 'none';
             dictNameBlock.style.display = 'none';
@@ -310,8 +476,100 @@
                 }
             } else if (this.value === 'reference_text') {
                 dictNameBlock.style.display = 'block';
+            } else if (this.value === 'composite') {
+                compositeBlock.style.display = 'block';
+                // Если частей ещё нет — добавляем одну для удобства
+                if (document.getElementById('composite-parts-container').children.length === 0) {
+                    addCompositePart();
+                }
+            } else {
+                compositeBlock.style.display = 'none';
+                document.getElementById('composite-parts-container').innerHTML = '';
             }
         });
+
+        function addCompositePart() {
+            const container = document.getElementById('composite-parts-container');
+            const row = document.createElement('div');
+            row.className = 'composite-part-row';
+            row.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-bottom: 8px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;';
+
+            // 1. Название части
+            const labelInput = document.createElement('input');
+            labelInput.type = 'text';
+            labelInput.placeholder = 'Название части (например, Название)';
+            labelInput.className = 'part-label';
+            labelInput.style.flex = '1';
+
+            // 2. Тип части
+            const typeSelect = document.createElement('select');
+            typeSelect.className = 'part-type';
+            typeSelect.innerHTML = `
+                <option value="text">Текст</option>
+                <option value="number">Число</option>
+                <option value="boolean">Да/Нет</option>
+                <option value="institution">ОУ</option>
+                <option value="custom_select">Выбор из списка</option>
+                <option value="reference_text">Текст (с выбором)</option>
+            `;
+
+            // 3. Контейнер для доп. селекта (справочник/словарь)
+            const refContainer = document.createElement('span');
+            refContainer.className = 'part-ref-container';
+
+            // 4. Кнопка удаления
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-btn';
+            removeBtn.textContent = '✕';
+            removeBtn.onclick = () => row.remove();
+
+            // При смене типа — показываем/скрываем селект справочника
+            typeSelect.addEventListener('change', function() {
+                refContainer.innerHTML = '';
+                if (this.value === 'custom_select') {
+                    const refSelect = document.createElement('select');
+                    refSelect.className = 'part-ref-select';
+                    refSelect.innerHTML = '<option value="">— загрузка... —</option>';
+                    fetch('/api/custom_fields')
+                        .then(r => r.json())
+                        .then(fields => {
+                            refSelect.innerHTML = '<option value="">— справочник —</option>';
+                            fields.forEach(f => {
+                                const o = document.createElement('option');
+                                o.value = f.id;
+                                o.textContent = f.label;
+                                refSelect.appendChild(o);
+                            });
+                        });
+                    refContainer.appendChild(refSelect);
+                } else if (this.value === 'reference_text') {
+                    const refSelect = document.createElement('select');
+                    refSelect.className = 'part-ref-select';
+                    refSelect.innerHTML = '<option value="">— загрузка... —</option>';
+                    fetch('/api/reference_dicts')
+                        .then(r => r.json())
+                        .then(dicts => {
+                            refSelect.innerHTML = '<option value="">— словарь —</option>';
+                            dicts.forEach(d => {
+                                const o = document.createElement('option');
+                                o.value = d.id;
+                                o.textContent = d.name;
+                                refSelect.appendChild(o);
+                            });
+                        });
+                    refContainer.appendChild(refSelect);
+                }
+            });
+
+            row.appendChild(labelInput);
+            row.appendChild(typeSelect);
+            row.appendChild(refContainer);
+            row.appendChild(removeBtn);
+            container.appendChild(row);
+        }
+
+        document.getElementById('btn-add-part').addEventListener('click', addCompositePart);
         // --- Загрузка справочников для текства (с выбором вариантов)
         async function loadExistingRefs(kind) {
             const refBlock = document.getElementById('existing-ref-block');
@@ -381,7 +639,61 @@
             const label = document.getElementById('new-field-label').value.trim();
             const type = document.getElementById('new-field-type').value;
 
+            if (type === 'composite') {
+                const partRows = document.querySelectorAll('#composite-parts-container .composite-part-row');
+                const parts = [];
 
+                for (let i = 0; i < partRows.length; i++) {
+                    const row = partRows[i];
+                    const partLabel = row.querySelector('.part-label').value.trim();
+                    const partType = row.querySelector('.part-type').value;
+                    const refSelect = row.querySelector('.part-ref-select');
+
+                    if (!partLabel) {
+                        alert(`У части ${i + 1} не заполнено название`);
+                        return;
+                    }
+
+                    const part = {
+                        name: 'part' + (i + 1),  // уникальное имя для JSONB
+                        label: partLabel,
+                        type: partType
+                    };
+
+                    if (partType === 'custom_select') {
+                        if (!refSelect || !refSelect.value) {
+                            alert(`Для части «${partLabel}» выберите справочник`);
+                            return;
+                        }
+                        part.field_id = parseInt(refSelect.value);
+                    } else if (partType === 'reference_text') {
+                        if (!refSelect || !refSelect.value) {
+                            alert(`Для части «${partLabel}» выберите словарь`);
+                            return;
+                        }
+                        part.dict_id = parseInt(refSelect.value);
+                    }
+
+                    parts.push(part);
+                }
+
+                if (parts.length === 0) {
+                    alert('Добавьте хотя бы одну часть');
+                    return;
+                }
+
+                addFieldToTemplate({
+                    id: 'f' + (getCurrentFields().length + 1),
+                    label: label,
+                    type: 'composite',
+                    parts: parts,
+                    required: true
+                });
+
+                clearDialog();
+                document.getElementById('add-field-dialog').close();
+                return;
+            }
             if (!label) {
                 alert('Введите название поля');
                 return;
@@ -403,16 +715,16 @@
                     if (!data.success) {
                         alert(data.error || 'Ошибка создания словаря');
                         return;
+                    } else {
+                        await loadReferenceCache();
+                            addFieldToTemplate({
+                            id: 'f' + (getCurrentFields().length + 1),
+                            label: label,
+                            type: 'reference_text',
+                            dict_id: data.id,
+                            required: true
+                        });
                     }
-
-                    addFieldToTemplate({
-                        id: 'f' + (getCurrentFields().length + 1),
-                        label: label,
-                        type: 'reference_text',
-                        dict_id: data.id,
-                        required: true
-                    });
-
                     clearDialog();
                     document.getElementById('add-field-dialog').close();
                 } catch (err) {
@@ -442,15 +754,16 @@
                     if (!data.success) {
                         alert(data.error || 'Ошибка создания поля');
                         return;
+                    } else {
+                        await loadReferenceCache();
+                        addFieldToTemplate({
+                            id: 'f' + (getCurrentFields().length + 1),
+                            label: label,
+                            field_id: data.id,
+                            type: 'custom_select',
+                            required: true
+                        });
                     }
-
-                    addFieldToTemplate({
-                        id: 'f' + (getCurrentFields().length + 1),
-                        label: label,
-                        field_id: data.id,
-                        type: 'custom_select',
-                        required: true
-                    });
                     clearDialog();  // <-- очищаем после добавления
                     document.getElementById('add-field-dialog').close();
                 } catch (err) {
