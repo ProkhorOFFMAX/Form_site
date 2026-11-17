@@ -315,6 +315,15 @@ def api_responses():
                 )
                 answer["linked_id"] = match[0]["id"] if match else None
                 answers[field["id"]] = answer
+        elif field.get("type") == "composite":
+            value = answers.get(field["id"])
+            if not isinstance(value, dict):
+                return jsonify({"success": False, "error": f"Поле «{field['label']}» должно быть объектом"}), 400
+            for part in field.get("parts", []):
+                if part.get("required") and not value.get(part["name"]):
+                    return jsonify({"success": False,
+                                    "error": f"В поле «{field['label']}» не заполнена часть «{part['label']}»"}), 400
+
         #elif field["type"] == "institution":
         #    answer = answers.get(field["id"])
         #    answers[field["id"]] = int(answer)

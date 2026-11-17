@@ -651,3 +651,105 @@ dialog::backdrop {
     cursor: pointer;
     font-size: 12px;
 }
+
+.composite-field {
+    border: 1px solid #3498db;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: #f8fbff;
+}
+
+.composite-field-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #2c3e50;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #cce5ff;
+}
+
+.composite-part {
+    margin-bottom: 12px;
+}
+
+.composite-part-label {
+    display: block;
+    font-weight: 500;
+    font-size: 14px;
+    color: #555;
+}
+
+.composite-part-label input,
+.composite-part-label select {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+.institution-pair {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.institution-pair select {
+    flex: 1;
+    margin-top: 0 !important; /* переопределяем margin-top у вложенных */
+}
+
+.composite-field {
+    border: 1px solid #3498db;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    background: #f8fbff;
+}
+
+.composite-field-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #2c3e50;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #cce5ff;
+}
+
+.composite-part {
+    margin-bottom: 12px;
+}
+
+.composite-part-label {
+    display: block;
+    font-weight: 500;
+    font-size: 14px;
+    color: #555;
+}
+
+.composite-part-label input,
+.composite-part-label select {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+.institution-pair {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.institution-pair select {
+    flex: 1;
+    margin-top: 0;
+}

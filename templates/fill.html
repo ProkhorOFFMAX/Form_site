@@ -17,41 +17,89 @@
 
         <div id="form-container">
             {% for field in fields %}
-                <p>
-                    <label>{{ field.label }}:<br>
-                        {% if field.type == "text" %}
-                            <input type="text" name="{{ field.id }}">
-                        {% elif field.type == "number" %}
-                            <input type="number" step="any" name="{{ field.id }}">
-                        {% elif field.type == "boolean" %}
-                            <select name="{{ field.id }}">
-                                <option value="">— выберите —</option>
-                                <option value="true">Да</option>
-                                <option value="false">Нет</option>
-                            </select>
-                        {% elif field.type == "institution" %}
-                            <select class="inst-type" name="{{ field.id }}_type" required>
-                                <option value="">— выберите тип —</option>
-                                <option value="ГБОУ">ГБОУ</option>
-                                <option value="ГБДОУ">ГБДОУ</option>
-                                <option value="ОДОД">ОДОД</option>
-                            </select>
-                            <select class="inst-name" name="{{ field.id }}" required>
-                                <option value="">- сначала выберите тип ОУ -</option>
-                            </select>
-                        {% elif field.type == "custom_select" %}
-                            <select name="{{ field.id }}" class="custom-select"
-                                    data-field-id="{{ field.field_id }}">
-                                <option value="">— загрузка... —</option>
-                            </select>
-                        {% elif field.type == "reference_text" %}
-                            <input type="text" name="{{ field.id }}_original"
-                                   list="datalist-{{ field.id }}"
-                                   data-dict-id="{{ field.dict_id }}">
-                            <datalist id="datalist-{{ field.id }}"></datalist>
-                        {% endif %}
-                    </label>
-                </p>
+                {% if field.type == "composite" %}
+                    <!-- Composite-поле: отдельный блок, без внешнего label -->
+                    <div class="composite-field" data-composite-field="{{ field.id }}">
+                        <div class="composite-field-title">{{ field.label }}</div>
+                        {% for part in field.parts %}
+                            <div class="composite-part">
+                                <label class="composite-part-label">{{ part.label }}:
+                                    {% if part.type == "text" %}
+                                        <input type="text" data-part-name="{{ part.name }}" data-part-type="text" {% if part.required %}required{% endif %}>
+                                    {% elif part.type == "number" %}
+                                        <input type="number" step="any" data-part-name="{{ part.name }}" data-part-type="number" {% if part.required %}required{% endif %}>
+                                    {% elif part.type == "boolean" %}
+                                        <select data-part-name="{{ part.name }}" data-part-type="boolean" {% if part.required %}required{% endif %}>
+                                            <option value="">— выберите —</option>
+                                            <option value="true">Да</option>
+                                            <option value="false">Нет</option>
+                                        </select>
+                                    {% elif part.type == "institution" %}
+                                        <div class="institution-pair">
+                                            <select class="inst-type" required>
+                                                <option value="">— тип —</option>
+                                                <option value="ГБОУ">ГБОУ</option>
+                                                <option value="ГБДОУ">ГБДОУ</option>
+                                                <option value="ОДОД">ОДОД</option>
+                                            </select>
+                                            <select data-part-name="{{ part.name }}" data-part-type="institution" class="inst-name" {% if part.required %}required{% endif %}>
+                                                <option value="">— сначала тип —</option>
+                                            </select>
+                                        </div>
+                                    {% elif part.type == "custom_select" %}
+                                        <select data-part-name="{{ part.name }}" data-part-type="custom_select"
+                                                data-ref-field-id="{{ part.field_id }}" class="composite-custom-select"
+                                                {% if part.required %}required{% endif %}>
+                                            <option value="">— загрузка... —</option>
+                                        </select>
+                                    {% elif part.type == "reference_text" %}
+                                        <input type="text" data-part-name="{{ part.name }}" data-part-type="reference_text"
+                                               data-dict-id="{{ part.dict_id }}" list="datalist-{{ field.id }}-{{ part.name }}"
+                                               {% if part.required %}required{% endif %}>
+                                        <datalist id="datalist-{{ field.id }}-{{ part.name }}"></datalist>
+                                    {% endif %}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <!-- Обычные поля: как раньше -->
+                    <p>
+                        <label>{{ field.label }}:<br>
+                            {% if field.type == "text" %}
+                                <input type="text" name="{{ field.id }}">
+                            {% elif field.type == "number" %}
+                                <input type="number" step="any" name="{{ field.id }}">
+                            {% elif field.type == "boolean" %}
+                                <select name="{{ field.id }}">
+                                    <option value="">— выберите —</option>
+                                    <option value="true">Да</option>
+                                    <option value="false">Нет</option>
+                                </select>
+                            {% elif field.type == "institution" %}
+                                <select class="inst-type" name="{{ field.id }}_type" required>
+                                    <option value="">— выберите тип —</option>
+                                    <option value="ГБОУ">ГБОУ</option>
+                                    <option value="ГБДОУ">ГБДОУ</option>
+                                    <option value="ОДОД">ОДОД</option>
+                                </select>
+                                <select class="inst-name" name="{{ field.id }}" required>
+                                    <option value="">- сначала выберите тип ОУ -</option>
+                                </select>
+                            {% elif field.type == "custom_select" %}
+                                <select name="{{ field.id }}" class="custom-select"
+                                        data-field-id="{{ field.field_id }}">
+                                    <option value="">— загрузка... —</option>
+                                </select>
+                            {% elif field.type == "reference_text" %}
+                                <input type="text" name="{{ field.id }}_original"
+                                       list="datalist-{{ field.id }}"
+                                       data-dict-id="{{ field.dict_id }}">
+                                <datalist id="datalist-{{ field.id }}"></datalist>
+                            {% endif %}
+                        </label>
+                    </p>
+                {% endif %}
             {% endfor %}
         </div>
 

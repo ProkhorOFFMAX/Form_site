@@ -78,6 +78,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const emptyFields = [];
         let hasError = false;
 
+        // Сбор composite-полей
+
+        // --- 1. Сбор обычных полей ---
         document.querySelectorAll('#form-container [name]').forEach(function(input) {
             const name = input.name;
 
@@ -136,6 +139,36 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        const composites = {};
+        document.querySelectorAll('[data-composite-field]').forEach(container => {
+            const fieldId = container.dataset.compositeField;
+            composites[fieldId] = {};
+
+            container.querySelectorAll('[data-part-name]').forEach(input => {
+                const partName = input.dataset.partName;
+                const partType = input.dataset.partType;
+                let value = input.value.trim();
+
+                if (value === '') return; // пропускаем пустые
+
+                if (partType === 'number') value = parseFloat(value);
+                else if (partType === 'boolean') value = (value === 'true');
+                else if (partType === 'custom_select') value = parseInt(value);
+                else if (partType === 'institution') value = parseInt(value);
+                else if (partType === 'reference_text') {
+                    value = { original: value, linked_id: null };
+                }
+
+                composites[fieldId][partName] = value;
+            });
+        });
+
+        // Добавляем в answers
+        Object.keys(composites).forEach(fid => {
+            answers[fid] = composites[fid];
+        });
+
+
         // --- Предупреждение о пустых полях ---
         if (emptyFields.length > 0) {
             const list = emptyFields.map(f => `• ${f}`).join('\n');
@@ -161,6 +194,67 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (err) {
             showError('Сетевая ошибка: ' + err.message);
         }
+    });
+
+    document.querySelectorAll('.composite-custom-select').forEach(async function(select) {
+        const fieldId = select.dataset.refFieldId;
+        if (!fieldId) return;
+
+        try {
+            const response = await fetch(`/api/custom_fields/${fieldId}/options`);
+            const options = await response.json();
+
+            select.innerHTML = '<option value="">— выберите —</option>';
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.id;
+                option.textContent = opt.label;
+                select.appendChild(option);
+            });
+        } catch (err) {
+            console.error('Ошибка загрузки composite custom_select:', err);
+        }
+    });
+
+    document.querySelectorAll('input[data-part-type="reference_text"]').forEach(async function(input) {
+        const dictId = input.dataset.dictId;
+        const datalist = document.getElementById(input.getAttribute('list'));
+        if (!dictId || !datalist) return;
+
+        try {
+            const response = await fetch(`/api/reference_items?dict_id=${dictId}`);
+            const items = await response.json();
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.label;
+                datalist.appendChild(option);
+            });
+        } catch (err) {
+            console.error('Ошибка загрузки composite reference_text:', err);
+        }
+    });
+
+    document.querySelectorAll('.composite-field .inst-type').forEach(function(typeSelect) {
+        typeSelect.addEventListener('change', async function() {
+            const type = this.value;
+            const nameSelect = this.nextElementSibling; // второй select
+            if (!nameSelect || !nameSelect.classList.contains('inst-name')) return;
+
+            nameSelect.innerHTML = '<option value="">— загрузка... —</option>';
+            try {
+                const response = await fetch(`/api/institutions/${encodeURIComponent(type)}`);
+                const data = await response.json();
+                nameSelect.innerHTML = '<option value="">— выберите ОУ —</option>';
+                data.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = item.short_name;
+                    nameSelect.appendChild(opt);
+                });
+            } catch (err) {
+                nameSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
+            }
+        });
     });
 
     function showError(msg) {
