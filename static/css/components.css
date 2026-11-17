@@ -753,3 +753,136 @@ dialog::backdrop {
     flex: 1;
     margin-top: 0;
 }
+
+/* === Диалог редактирования composite-поля === */
+
+#edit-composite-dialog {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 24px;
+    width: 480px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+#edit-composite-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+#edit-composite-dialog h2 {
+    margin: 0 0 16px;
+    font-size: 18px;
+    color: #2c3e50;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
+/* Контейнер для частей composite */
+#edit-composite-parts {
+    margin: 16px 0;
+}
+
+#edit-composite-parts > div {
+    margin-bottom: 12px;
+}
+
+#edit-composite-parts label {
+    display: block;
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 4px;
+}
+
+#edit-composite-parts input,
+#edit-composite-parts select {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+#edit-composite-parts input:focus,
+#edit-composite-parts select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+}
+
+/* Подпись "Причина изменения" */
+#edit-composite-dialog > form > label {
+    display: block;
+    margin: 16px 0 8px;
+    font-size: 14px;
+    color: #555;
+}
+
+#edit-composite-dialog > form > label input {
+    width: 100%;
+    padding: 8px;
+    margin-top: 6px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+#edit-composite-dialog > form > label input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 4px rgba(52, 152, 219, 0.3);
+}
+
+/* Кнопки */
+#edit-composite-dialog .dialog-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+#edit-composite-dialog .dialog-actions button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+#btn-save-composite {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+#btn-save-composite:hover {
+    background: #2980b9;
+    border-color: #2980b9;
+}
+
+#edit-composite-dialog .cancel {
+    background: #f4f4f4;
+    color: #333;
+    border-color: #ccc;
+}
+
+#edit-composite-dialog .cancel:hover {
+    background: #e0e0e0;
+}
+
+.history-composite-table {
+    font-size: 13px;
+    margin: 0;
+}
+
+.history-composite-table th,
+.history-composite-table td {
+    padding: 4px 8px;
+    border: 1px solid #eee;
+    text-align: left;
+}

@@ -54,8 +54,35 @@
                 html += `<td>${date}</td>`;
                 html += `<td>${h.changed_by_email}</td>`;
                 html += `<td>${h.field_label}</td>`;
-                html += `<td class="history-old">${h.old_display || '—'}</td>`;
-                html += `<td class="history-new">${h.new_display || '—'}</td>`;
+
+                if (h.is_composite) {
+                    // composite: выводим список частей в одной ячейке
+                    let partsHtml = '<div class="composite-history-list">';
+                    const parts = Object.keys(h.old_display || h.new_display || {});
+
+                    parts.forEach(partLabel => {
+                        const oldVal = (h.old_display || {})[partLabel] || '—';
+                        const newVal = (h.new_display || {})[partLabel] || '—';
+
+                        if (oldVal === newVal) {
+                            partsHtml += `<div class="composite-history-item">
+                                <strong>${partLabel}:</strong> ${newVal}
+                            </div>`;
+                        } else {
+                            partsHtml += `<div class="composite-history-item">
+                                <strong>${partLabel}:</strong>
+                                <span class="history-old">${oldVal}</span> →
+                                <span class="history-new">${newVal}</span>
+                            </div>`;
+                        }
+                    });
+
+                    partsHtml += '</div>';
+                    html += `<td colspan="2">${partsHtml}</td>`;
+                } else {
+                    html += `<td class="history-old">${h.old_display || '—'}</td>`;
+                    html += `<td class="history-new">${h.new_display || '—'}</td>`;
+                }
                 html += `<td>${h.change_reason || '—'}</td>`;
                 html += '</tr>';
             });

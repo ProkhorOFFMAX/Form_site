@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- 2. Загрузка вариантов для reference_text (datalist) ---
-    document.querySelectorAll('input[data-dict-id]').forEach(async function(input) {
+    document.querySelectorAll('input[data-dict-id]:not([data-part-type])').forEach(async function(input) {
         const dictId = input.dataset.dictId;
         const datalist = document.getElementById(input.getAttribute('list'));
         if (!datalist) return;

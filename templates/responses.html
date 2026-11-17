@@ -6,13 +6,27 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
 </head>
 <body>
-    {% macro cell_class(value) -%}
+    {% macro cell_class(value, field) -%}
         {%- if value is none -%}
             empty-cell
         {%- elif value is string and value == '' -%}
             empty-cell
-        {%- elif value is mapping and not value.get('original') -%}
-            empty-cell
+        {%- elif field.type == 'composite' -%}
+            {%- if value is not mapping or not value -%}
+                empty-cell
+            {%- else -%}
+                {%- set ns = namespace(has_empty=false) -%}
+                {%- for part in field.parts -%}
+                    {%- set part_val = value.get(part.name) -%}
+                    {# Если ключа нет или значение пустое — ошибка #}
+                    {%- if part_val is none or part_val == '' -%}
+                        {%- set ns.has_empty = true -%}
+                    {%- endif -%}
+                {%- endfor -%}
+                {%- if ns.has_empty -%}empty-cell{%- endif -%}
+            {%- endif -%}
+        {%- elif value is mapping and 'original' in value -%}
+            {%- if not value.get('original') -%}empty-cell{%- endif -%}
         {%- endif -%}
     {%- endmacro %}
 
@@ -45,7 +59,7 @@
                         <tr>
                             <td>{{ row.id }}</td>
                             {% for field in fields %}
-                                <td class="{{ cell_class(row.data.get(field.id)) }}">
+                                <td class="{{ cell_class(row.data.get(field.id), field) }}">
                                     <div class="cell-content">
                                         <span class="cell-value">
                                             {% if field.type == "boolean" %}
@@ -75,12 +89,43 @@
                                                 {% else %}
                                                     {{ val or "—" }}
                                                 {% endif %}
+                                            {% elif field.type == "composite" %}
+                                                {% set val = row.data.get(field.id, {}) %}
+                                                {% if val is mapping and val %}
+                                                    {% for part in field.parts %}
+                                                        <div>
+                                                            <strong>{{ part.label }}:</strong>
+                                                            {% set part_val = val.get(part.name) %}
+                                                            {% if part_val is not none and part_val != '' %}
+                                                                {% if part.type == 'institution' %}
+                                                                    {{ inst_names.get(part_val|int, part_val) }}
+                                                                {% elif part.type == 'custom_select' %}
+                                                                    {{ option_labels.get(part_val|int, part_val) }}
+                                                                {% elif part.type == 'reference_text' %}
+                                                                    {{ part_val.get('original', '—') if part_val is mapping else part_val }}
+                                                                {% else %}
+                                                                    {{ part_val }}
+                                                                {% endif %}
+                                                            {% else %}
+                                                                <span style="color: #999;">—</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% endfor %}
+                                                    {% if is_admin or row.user_id == current_user.id %}
+                                                        <button type="button" class="edit-composite-btn"
+                                                                data-response-id="{{ row.id }}"
+                                                                data-field='{{ field | tojson }}'
+                                                                data-value='{{ val | tojson }}'>✎</button>
+                                                    {% endif %}
+                                                {% else %}
+                                                    —
+                                                {% endif %}
                                             {% else %}
                                                 {{ row.data.get(field.id) or "—" }}
                                             {% endif %}
                                         </span>
 
-                                        {% if is_admin or row.user_id == current_user.id %}
+                                        {% if field.type != "composite" and (is_admin or row.user_id == current_user.id) %}
                                             <button type="button" class="edit-field-btn"
                                                     data-response-id="{{ row.id }}"
                                                     data-field='{{ field | tojson }}'
@@ -131,6 +176,24 @@
 
             <div class="dialog-actions">
                 <button type="button" id="btn-save-field">Сохранить</button>
+                <button type="button" class="cancel">Отмена</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog id="edit-composite-dialog">
+        <h2 id="edit-composite-title">Редактировать составное поле</h2>
+        <form id="edit-composite-form" method="dialog">
+            <input type="hidden" id="edit-composite-response-id">
+            <input type="hidden" id="edit-composite-field-id">
+
+            <div id="edit-composite-parts"></div>
+
+            <label>Причина изменения:
+                <input type="text" id="edit-composite-reason" placeholder="Например, исправлена опечатка">
+            </label>
+
+            <div class="dialog-actions">
+                <button type="button" id="btn-save-composite">Сохранить</button>
                 <button type="button" class="cancel">Отмена</button>
             </div>
         </form>

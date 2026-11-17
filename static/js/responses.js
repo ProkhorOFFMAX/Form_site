@@ -248,4 +248,187 @@ document.addEventListener('DOMContentLoaded', function() {
             // (нужен отдельный <dialog id="history-dialog"> в HTML)
         });
     });
+
+    document.querySelectorAll('.edit-composite-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const responseId = this.dataset.responseId;
+            const field = JSON.parse(this.dataset.field);
+            const currentValue = JSON.parse(this.dataset.value || '{}');
+
+            document.getElementById('edit-composite-response-id').value = responseId;
+            document.getElementById('edit-composite-field-id').value = field.id;
+            document.getElementById('edit-composite-title').textContent = `Редактировать: ${field.label}`;
+            document.getElementById('edit-composite-reason').value = '';
+
+            const partsContainer = document.getElementById('edit-composite-parts');
+            partsContainer.innerHTML = '';
+
+            // Рендерим каждую часть
+            field.parts.forEach(part => {
+                const wrapper = document.createElement('div');
+                wrapper.style.marginBottom = '10px';
+
+                const label = document.createElement('label');
+                label.textContent = part.label + ': ';
+                label.style.display = 'block';
+                label.style.marginBottom = '4px';
+                wrapper.appendChild(label);
+
+                const val = currentValue[part.name];
+
+                if (part.type === 'boolean') {
+                    const select = document.createElement('select');
+                    select.innerHTML = '<option value="true">Да</option><option value="false">Нет</option>';
+                    select.value = val === true ? 'true' : 'false';
+                    select.dataset.partName = part.name;
+                    select.dataset.partType = 'boolean';
+                    select.style.width = '100%';
+                    select.style.padding = '6px';
+                    wrapper.appendChild(select);
+
+                } else if (part.type === 'number') {
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = 'any';
+                    input.value = val ?? '';
+                    input.dataset.partName = part.name;
+                    input.dataset.partType = 'number';
+                    input.style.width = '100%';
+                    input.style.padding = '6px';
+                    wrapper.appendChild(input);
+
+                } else if (part.type === 'custom_select') {
+                    const select = document.createElement('select');
+                    select.dataset.partName = part.name;
+                    select.dataset.partType = 'custom_select';
+                    select.style.width = '100%';
+                    select.style.padding = '6px';
+                    select.innerHTML = '<option value="">— загрузка... —</option>';
+                    // Загружаем варианты
+                    fetch(`/api/custom_fields/${part.field_id}/options`)
+                        .then(r => r.json())
+                        .then(options => {
+                            select.innerHTML = '<option value="">— выберите —</option>';
+                            options.forEach(opt => {
+                                const o = document.createElement('option');
+                                o.value = opt.id;
+                                o.textContent = opt.label;
+                                if (parseInt(opt.id) === parseInt(val)) o.selected = true;
+                                select.appendChild(o);
+                            });
+                        });
+                    wrapper.appendChild(select);
+
+                } else if (part.type === 'institution') {
+                    // Упрощённо: input с ID (или можно сделать каскад, как в fill.js)
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = val ?? '';
+                    input.placeholder = 'ID ОУ';
+                    input.dataset.partName = part.name;
+                    input.dataset.partType = 'institution';
+                    input.style.width = '100%';
+                    input.style.padding = '6px';
+                    wrapper.appendChild(input);
+
+                } else if (part.type === 'reference_text') {
+                    // input + datalist
+                    const listId = 'composite-datalist-' + Math.random().toString(36).substr(2, 9);
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = (val && val.original) ? val.original : (val ?? '');
+                    input.dataset.partName = part.name;
+                    input.dataset.partType = 'reference_text';
+                    input.dataset.linkedId = (val && val.linked_id) ? val.linked_id : '';
+                    input.setAttribute('list', listId);
+                    input.style.width = '100%';
+                    input.style.padding = '6px';
+
+                    const datalist = document.createElement('datalist');
+                    datalist.id = listId;
+
+                    // Загружаем значения словаря
+                    fetch(`/api/reference_items?dict_id=${part.dict_id}`)
+                        .then(r => r.json())
+                        .then(items => {
+                            items.forEach(item => {
+                                const o = document.createElement('option');
+                                o.value = item.label;
+                                datalist.appendChild(o);
+                            });
+                        });
+
+                    wrapper.appendChild(input);
+                    wrapper.appendChild(datalist);
+
+                } else {
+                    // text и остальные
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = val ?? '';
+                    input.dataset.partName = part.name;
+                    input.dataset.partType = part.type || 'text';
+                    input.style.width = '100%';
+                    input.style.padding = '6px';
+                    wrapper.appendChild(input);
+                }
+
+                partsContainer.appendChild(wrapper);
+            });
+
+            document.getElementById('edit-composite-dialog').showModal();
+        });
+    });
+
+    document.getElementById('btn-save-composite').addEventListener('click', async function() {
+        const responseId = document.getElementById('edit-composite-response-id').value;
+        const fieldId = document.getElementById('edit-composite-field-id').value;
+        const reason = document.getElementById('edit-composite-reason').value.trim();
+
+        const newValue = {};
+        document.querySelectorAll('#edit-composite-parts [data-part-name]').forEach(input => {
+            const partName = input.dataset.partName;
+            const partType = input.dataset.partType;
+            let val = input.value.trim();
+
+            if (val === '') return;
+
+            if (partType === 'number') {
+                val = parseFloat(val);
+            } else if (partType === 'boolean') {
+                val = (val === 'true');
+            } else if (partType === 'custom_select' || partType === 'institution') {
+                val = parseInt(val);
+            } else if (partType === 'reference_text') {
+                // Сохраняем объект с original и (опционально) linked_id
+                const linkedId = input.dataset.linkedId ? parseInt(input.dataset.linkedId) : null;
+                val = { original: val, linked_id: linkedId };
+            }
+
+            newValue[partName] = val;
+        });
+
+        try {
+            const response = await fetch(`/api/responses/${responseId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    field_id: fieldId,
+                    new_value: newValue,
+                    reason
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('edit-composite-dialog').close();
+                location.reload();
+            } else {
+                alert(data.error || 'Ошибка сохранения');
+            }
+        } catch (err) {
+            alert('Сетевая ошибка: ' + err.message);
+        }
+    });
 });

@@ -132,6 +132,13 @@ def admin_users():
     users = query_db("SELECT id, email, role, created_at FROM users ORDER BY created_at DESC")
     return render_template("admin_users.html", users=users)
 
+# Страницы с неправильными или новыми значениями полей
+@app.route("/admin/orphans")
+@login_required
+def admin_orphans():
+    if not current_user.is_admin():
+        return "Доступ запрещён", 403
+    return render_template("admin_orphans.html")
 
 @login_required
 def admin_create_user():
@@ -194,7 +201,7 @@ def index():
         """, (current_user.id, current_user.id))
         return render_template("index_user.html", templates=templates)
 
-
+# Добавление администратором доступа к анкете
 @app.route("/admin/templates/<int:template_id>/access", methods=["GET", "POST"])
 @login_required
 def admin_template_access(template_id):
@@ -238,7 +245,7 @@ def admin_template_access(template_id):
         allowed_ids=allowed_ids
     )
 
-
+# Создание анкеты (НЕ API)
 @app.route('/create_template', methods=['GET', 'POST'])
 def create_template():
     if request.method == 'POST':
@@ -285,6 +292,7 @@ def fill(template_id):
 
     return render_template("fill.html", template=template, fields=fields, has_responses=has_responses)
 
+# Заполнение анкеты авторизованным пользователем
 @app.route('/api/responses', methods=['POST'])
 @login_required
 def api_responses():
@@ -299,11 +307,7 @@ def api_responses():
     if not templates:
         return jsonify({"success": False, "error": "Шаблон не найден"}), 404
 
-    fields = templates[0]["fields"]
-    # Валидация ответов (упрощённо — проверяем, что все обязательные поля заполнены)
-    #for field in fields:
-    #    if field.get("required") and not answers.get(field["id"]):
-    #        return jsonify({"success": False, "error": f"Поле «{field['label']}» обязательно"}), 400
+    fields = templates[0]["fields"] # Проверка по полям
 
     for field in fields:
         if field.get("type") == "reference_text":
@@ -320,9 +324,24 @@ def api_responses():
             if not isinstance(value, dict):
                 return jsonify({"success": False, "error": f"Поле «{field['label']}» должно быть объектом"}), 400
             for part in field.get("parts", []):
+                part_name = part.get("name")
+                part_value = value.get(part_name)
+
                 if part.get("required") and not value.get(part["name"]):
                     return jsonify({"success": False,
                                     "error": f"В поле «{field['label']}» не заполнена часть «{part['label']}»"}), 400
+                # reference_text внутри composite
+                if part.get("type") == "reference_text":
+                    # part_value — это объект {original, linked_id} или строка
+                    if isinstance(part_value, dict) and part_value.get("original"):
+                        match = query_db(
+                            "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s",
+                            (part["dict_id"], part_value["original"])
+                        )
+                        part_value["linked_id"] = match[0]["id"] if match else None
+                        # Обновляем значение части внутри composite
+                        value[part_name] = part_value
+
 
         #elif field["type"] == "institution":
         #    answer = answers.get(field["id"])
@@ -394,6 +413,26 @@ def api_update_response_field(response_id):
             (field["dict_id"], original)
         )
         new_value["linked_id"] = match[0]["id"] if match else None
+    elif field["type"] == "composite":
+        if not isinstance(new_value, dict):
+            return jsonify({"success": False, "error": "Неверный формат composite"}), 400
+        # Здесь можно добавить валидацию частей, как в /api/responses
+        for part in field.get("parts", []):
+            part_name = part["name"]
+            part_value = new_value.get(part_name)
+
+        if part.get("type") == "reference_text":
+            # Если пришла строка — превращаем в объект
+            if isinstance(part_value, str):
+                part_value = {"original": part_value, "linked_id": None}
+
+            if isinstance(part_value, dict) and part_value.get("original"):
+                match = query_db(
+                    "SELECT id FROM reference_items WHERE dict_id = %s AND label = %s",
+                    (part["dict_id"], part_value["original"])
+                )
+                part_value["linked_id"] = match[0]["id"] if match else None
+                new_value[part_name] = part_value
 
     # Сохраняем старое значение поля
     old_data = response["data"]
@@ -469,8 +508,12 @@ def responses(template_id):
             ORDER BY r.submitted_at DESC
         """, (template_id, current_user.id))
 
-    # --- Сбор названий ОУ (как раньше) ---
+    inst_names = {}
+    all_option_ids = set()
     all_inst_ids = set()
+
+    # --- Сбор названий ОУ  ---
+
     for row in rows:
         for field in fields:
             if field.get("type") == "institution":
@@ -478,7 +521,20 @@ def responses(template_id):
                 if inst_id:
                     all_inst_ids.add(inst_id)
 
-    inst_names = {}
+    # Сбор ID из composite-полей
+    for row in rows:
+        for field in fields:
+            if field.get("type") == "composite" and isinstance(row["data"].get(field["id"]), dict):
+                val = row["data"][field["id"]]
+                for part in field.get("parts", []):
+                    part_val = val.get(part["name"])
+                    if not part_val: continue
+
+                    if part["type"] == "institution":
+                        all_inst_ids.add(part_val)
+                    elif part["type"] == "custom_select":
+                        all_option_ids.add(part_val)
+
     if all_inst_ids:
         placeholders = ",".join(["%s"] * len(all_inst_ids))
         inst_rows = query_db(
@@ -488,13 +544,14 @@ def responses(template_id):
         inst_names = {r["id"]: r["short_name"] for r in inst_rows}
 
     # --- Сбор названий вариантов custom_select ---
-    all_option_ids = set()
     for row in rows:
         for field in fields:
             if field.get("type") == "custom_select":
                 opt_id = row["data"].get(field["id"])
                 if opt_id:
                     all_option_ids.add(opt_id)
+
+
 
     option_labels = {}
     if all_option_ids:
@@ -544,20 +601,36 @@ def api_response_history(response_id):
 
     result = []
     for row in rows:
-        field = field_map.get(row["field_id"], {})
-        result.append({
-            "id": row["id"],
-            "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
-            "changed_by_email": row["changed_by_email"],
-            "field_id": row["field_id"],
-            "field_label": field.get("label", row["field_id"]),
-            "field_type": field.get("type", "text"),
-            "old_value": row["old_value"],
-            "new_value": row["new_value"],
-            "old_display": decode_value(field.get("type", "text"), row["old_value"]),
-            "new_display": decode_value(field.get("type", "text"), row["new_value"]),
-            "change_reason": row["change_reason"]
-        })
+        field = next((f for f in fields if f["id"] == row["field_id"]), None)
+        field_type = field.get("type") if field else "text"
+        field_label = field.get("label") if field else row["field_id"]
+
+        if field_type == "composite":
+            old_decoded = decode_composite(field, row["old_value"])
+            new_decoded = decode_composite(field, row["new_value"])
+            result.append({
+                "id": row["id"],
+                "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
+                "changed_by_email": row["changed_by_email"],
+                "field_id": row["field_id"],
+                "field_label": field_label,
+                "is_composite": True,
+                "old_display": old_decoded,
+                "new_display": new_decoded,
+                "change_reason": row["change_reason"]
+            })
+        else:
+            result.append({
+                "id": row["id"],
+                "changed_at": row["changed_at"].isoformat() if row["changed_at"] else None,
+                "changed_by_email": row["changed_by_email"],
+                "field_id": row["field_id"],
+                "field_label": field_label,
+                "is_composite": False,
+                "old_display": decode_value(field_type, row["old_value"]),
+                "new_display": decode_value(field_type, row["new_value"]),
+                "change_reason": row["change_reason"]
+            })
 
     return jsonify(result)
 
@@ -601,6 +674,26 @@ def decode_value(field_type, value):
         return "Да" if value else "Нет"
 
     return str(value) if value is not None else "—"
+
+
+def decode_composite(field, value):
+    """
+    Расшифровывает composite-поле.
+    Возвращает список словарей: [{"label": ..., "old": ..., "new": ...}, ...]
+    или просто словарь {label: decoded_value}.
+    """
+    if not isinstance(value, dict):
+        return {}
+
+    result = {}
+    for part in field.get("parts", []):
+        pname = part["name"]
+        plabel = part["label"]
+        ptype = part["type"]
+        pval = value.get(pname)
+        result[plabel] = decode_value(ptype, pval)
+
+    return result
 
 
 @app.route("/api/institutions/<string:inst_type>")
@@ -792,6 +885,8 @@ def api_get_custom_fields_options(field_id):
     )
     return jsonify(options)
 
+# ---------- Образовательные учреждения ------------
+
 @app.route("/institutions")
 def institutions_list():
     """Страница управления ОУ с таблицей."""
@@ -905,8 +1000,62 @@ def api_reference_dicts():
     dicts = query_db("SELECT id, name FROM reference_dicts ORDER BY name")
     return jsonify(dicts)
 
-# --- Значение словаря ---
 
+# --- Неправильно заполненные поля в анкетах ---
+@app.route("/api/reference_dicts/<int:dict_id>/orphans")
+@login_required
+def api_reference_orphans(dict_id):
+    if not current_user.is_admin():
+        return jsonify({"error": "Доступ запрещён"}), 403
+
+    # Находим все шаблоны, где есть поле reference_text с этим dict_id
+    # (или composite-часть с reference_text)
+    templates = query_db("SELECT id, name, fields FROM templates")
+    relevant_field_ids = []  # список (template_id, field_id, part_name)
+    for t in templates:
+        for field in t["fields"]:
+            if field.get("type") == "reference_text" and field.get("dict_id") == dict_id:
+                relevant_field_ids.append((t["id"], field["id"], None))
+            elif field.get("type") == "composite":
+                for part in field.get("parts", []):
+                    if part.get("type") == "reference_text" and part.get("dict_id") == dict_id:
+                        relevant_field_ids.append((t["id"], field["id"], part["name"]))
+
+    if not relevant_field_ids:
+        return jsonify([])
+
+    # Собираем все original значения из responses, где linked_id = null
+    orphans = {}  # {original: [список response_id]}
+
+    for template_id, field_id, part_name in relevant_field_ids:
+        rows = query_db(
+            "SELECT id, data FROM responses WHERE template_id = %s", (template_id,)
+        )
+        for row in rows:
+            data = row["data"]
+            if part_name:
+                # composite
+                val = data.get(field_id, {}).get(part_name)
+                if isinstance(val, dict) and val.get("original") and not val.get("linked_id"):
+                    orphans.setdefault(val["original"], []).append(row["id"])
+            else:
+                # обычное reference_text
+                val = data.get(field_id)
+                if isinstance(val, dict) and val.get("original") and not val.get("linked_id"):
+                    orphans.setdefault(val["original"], []).append(row["id"])
+
+    result = []
+    for original, response_ids in orphans.items():
+        result.append({
+            "original": original,
+            "count": len(response_ids),
+            "response_ids": response_ids
+        })
+
+    return jsonify(result)
+
+
+# --- Значение словаря ---
 @app.route("/api/reference_items", methods=["GET", "POST"])
 def api_reference_items():
     if request.method == "POST":
